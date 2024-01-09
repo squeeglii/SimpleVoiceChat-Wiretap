@@ -17,6 +17,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.PlayerHeadItem;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.charset.StandardCharsets;
@@ -39,10 +41,10 @@ public class HeadUtils {
 
     public static ItemStack createSpeaker(UUID id, float range) {
         ItemStack stack = createHead("Speaker", id, SPEAKER, Wiretap.SERVER_CONFIG.speakerSkinUrl.get());
-        CompoundTag tag = stack.getOrCreateTag();
+        CompoundTag blockEntityTag = new CompoundTag();
 
-        tag.putFloat("range", range);
-        stack.setTag(tag);
+        blockEntityTag.putFloat(HeadUtils.NBT_SPEAKER_RANGE, range);
+        PlayerHeadItem.setBlockEntityData(stack, BlockEntityType.SKULL, blockEntityTag);
 
         return stack;
     }
