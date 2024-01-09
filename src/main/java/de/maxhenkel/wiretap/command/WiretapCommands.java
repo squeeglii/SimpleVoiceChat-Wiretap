@@ -25,7 +25,7 @@ public class WiretapCommands {
                 Commands.literal("items")
                         .executes(WiretapCommands::runWithoutRange)
                         .then(
-                                Commands.argument("range", FloatArgumentType.floatArg(0.0f))
+                                Commands.argument("speaker_radius", FloatArgumentType.floatArg(0.0f))
                                         .executes(WiretapCommands::runWithRange)
                         )
         );
@@ -46,7 +46,7 @@ public class WiretapCommands {
         Wiretap.LOGGER.info("WITH");
 
         ServerPlayer player = context.getSource().getPlayerOrException();
-        float range = context.getArgument("range", Float.class);
+        float range = FloatArgumentType.getFloat(context, "speaker_radius");
 
         return WiretapCommands.processCommand(player, range);
     }

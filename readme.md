@@ -25,7 +25,8 @@ This mod is not intended to be used for spying on people, this is **only for rol
 
 ## Commands
 
-- `/wiretap items` - Gives you a microphone and speaker (Requires OP permissions by default)
+- `/wiretap items [speaker_radius]` - Gives you a microphone and speaker (Requires OP permissions by default)
+ - If a radius isn't provided, the server speaker range is used by default.
 
 ## Configuration
 
