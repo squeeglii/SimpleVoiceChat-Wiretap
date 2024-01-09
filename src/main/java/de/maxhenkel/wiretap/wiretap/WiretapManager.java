@@ -8,6 +8,7 @@ import de.maxhenkel.voicechat.api.events.MicrophonePacketEvent;
 import de.maxhenkel.wiretap.Wiretap;
 import de.maxhenkel.wiretap.utils.HeadUtils;
 import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.NbtUtils;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -52,14 +53,23 @@ public class WiretapManager {
 
         UUID speaker = HeadUtils.getSpeaker(ownerProfile);
         if (speaker != null) {
-            speakers.put(speaker, new SpeakerChannel(this, speaker, new DimensionLocation(serverLevel, skullBlockEntity.getBlockPos())));
+            IRangeOverridable rangeGetter = (IRangeOverridable) skullBlockEntity;
+            float range = rangeGetter.wiretap$getRangeOverride();
+
+            DimensionLocation loc = new DimensionLocation(serverLevel, skullBlockEntity.getBlockPos());
+            SpeakerChannel channel = new SpeakerChannel(this, speaker, loc, range);
+            this.speakers.put(speaker, channel);
             return;
         }
     }
 
     public List<UUID> getNearbyMicrophones(ServerLevel level, Vec3 pos) {
         double range = Wiretap.SERVER_CONFIG.microphonePickupRange.get();
-        return microphones.entrySet().stream().filter(l -> l.getValue().isDimension(level)).filter(l -> l.getValue().getDistance(pos) <= range).map(Map.Entry::getKey).toList();
+        return microphones.entrySet().stream()
+                .filter(l -> l.getValue().isDimension(level))
+                .filter(l -> l.getValue().getDistance(pos) <= range)
+                .map(Map.Entry::getKey)
+                .toList();
     }
 
     public void onMicPacket(MicrophonePacketEvent event) {

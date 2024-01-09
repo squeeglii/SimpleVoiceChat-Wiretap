@@ -24,6 +24,8 @@ import java.util.*;
 
 public class HeadUtils {
 
+    public static final String NBT_SPEAKER_RANGE = "speaker_range";
+
     public static final String MICROPHONE = "microphone-aa41dc91-b8f1-4d4e-8c2d-5d95d541748c";
     public static final String SPEAKER = "speaker-aa41dc91-b8f1-4d4e-8c2d-5d95d541748c";
 
@@ -32,7 +34,17 @@ public class HeadUtils {
     }
 
     public static ItemStack createSpeaker(UUID id) {
-        return createHead("Speaker", id, SPEAKER, Wiretap.SERVER_CONFIG.speakerSkinUrl.get());
+        return HeadUtils.createSpeaker(id, -1f);
+    }
+
+    public static ItemStack createSpeaker(UUID id, float range) {
+        ItemStack stack = createHead("Speaker", id, SPEAKER, Wiretap.SERVER_CONFIG.speakerSkinUrl.get());
+        CompoundTag tag = stack.getOrCreateTag();
+
+        tag.putFloat("range", range);
+        stack.setTag(tag);
+
+        return stack;
     }
 
     @Nullable
@@ -74,6 +86,9 @@ public class HeadUtils {
 
         GameProfile gameProfile = getGameProfile(id, name, skinUrl);
         tag.put("SkullOwner", NbtUtils.writeGameProfile(new CompoundTag(), gameProfile));
+
+        stack.setTag(tag);
+
         return stack;
     }
 

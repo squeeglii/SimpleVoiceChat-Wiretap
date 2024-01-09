@@ -1,21 +1,28 @@
 package de.maxhenkel.wiretap.mixin;
 
 import com.mojang.authlib.GameProfile;
+import de.maxhenkel.wiretap.utils.HeadUtils;
+import de.maxhenkel.wiretap.wiretap.IRangeOverridable;
 import de.maxhenkel.wiretap.wiretap.WiretapManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.entity.SkullBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(SkullBlockEntity.class)
-public class SkullBlockEntityMixin extends BlockEntity {
+public class SkullBlockEntityMixin extends BlockEntity implements IRangeOverridable {
+
+    @Unique
+    private float rangeOverride = -1.0f;
 
     public SkullBlockEntityMixin(BlockEntityType<?> blockEntityType, BlockPos blockPos, BlockState blockState) {
         super(blockEntityType, blockPos, blockState);
@@ -31,7 +38,18 @@ public class SkullBlockEntityMixin extends BlockEntity {
     @Inject(method = "load", at = @At("RETURN"))
     public void load(CompoundTag compoundTag, CallbackInfo ci) {
         if (level != null && !level.isClientSide) {
+            this.rangeOverride = compoundTag.contains(HeadUtils.NBT_SPEAKER_RANGE, Tag.TAG_FLOAT)
+                    ? compoundTag.getFloat(HeadUtils.NBT_SPEAKER_RANGE)
+                    : -1.0f;
+
             WiretapManager.getInstance().onLoadHead((SkullBlockEntity) (Object) this);
+        }
+    }
+
+    @Inject(method = "saveAdditional", at = @At("RETURN"))
+    public void save(CompoundTag compoundTag, CallbackInfo ci) {
+        if (level != null && !level.isClientSide) {
+            compoundTag.putFloat(HeadUtils.NBT_SPEAKER_RANGE, this.rangeOverride);
         }
     }
 
@@ -43,4 +61,10 @@ public class SkullBlockEntityMixin extends BlockEntity {
             WiretapManager.getInstance().onLoadHead((SkullBlockEntity) (Object) this);
         }
     }
+
+    @Override
+    public float wiretap$getRangeOverride() {
+        return this.rangeOverride;
+    }
+
 }

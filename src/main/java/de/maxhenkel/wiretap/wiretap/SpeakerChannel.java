@@ -24,18 +24,23 @@ public class SpeakerChannel implements Supplier<short[]> {
     private final UUID id;
     private final Map<UUID, List<short[]>> packetBuffer;
     private final DimensionLocation dimensionLocation;
+    private final float maxRangeOverride; // if > 0, use this for range. Otherwise, use server config.
+
     private final Map<UUID, OpusDecoder> decoders;
     private final SoundEffect effect;
     @Nullable
     private AudioPlayer audioPlayer;
 
-    public SpeakerChannel(WiretapManager wiretapManager, UUID id, DimensionLocation dimensionLocation) {
+
+    public SpeakerChannel(WiretapManager wiretapManager, UUID id, DimensionLocation dimensionLocation, float rangeOverride) {
         this.wiretapManager = wiretapManager;
         this.id = id;
         this.dimensionLocation = dimensionLocation;
-        packetBuffer = new HashMap<>();
-        decoders = new HashMap<>();
-        effect = SoundEffectManager.getSoundEffect();
+        this.maxRangeOverride = rangeOverride;
+
+        this.packetBuffer = new HashMap<>();
+        this.decoders = new HashMap<>();
+        this.effect = SoundEffectManager.getSoundEffect();
     }
 
     public void addPacket(UUID sender, Vec3 senderLocation, byte[] opusEncodedData) {
@@ -75,15 +80,18 @@ public class SpeakerChannel implements Supplier<short[]> {
     }
 
     private AudioPlayer getAudioPlayer() {
-        if (audioPlayer == null) {
-            de.maxhenkel.voicechat.api.ServerLevel serverLevel = WiretapVoicechatPlugin.voicechatServerApi.fromServerLevel(dimensionLocation.getLevel());
-            Position position = WiretapVoicechatPlugin.voicechatServerApi.createPosition(dimensionLocation.getX() + 0.5D, dimensionLocation.getY() + 0.5D, dimensionLocation.getZ() + 0.5D);
-            LocationalAudioChannel channel = WiretapVoicechatPlugin.voicechatServerApi.createLocationalAudioChannel(id, serverLevel, position);
-            channel.setCategory(WiretapVoicechatPlugin.WIRETAP_CATEGORY);
-            channel.setDistance(Wiretap.SERVER_CONFIG.speakerAudioRange.get().floatValue());
-            audioPlayer = WiretapVoicechatPlugin.voicechatServerApi.createAudioPlayer(channel, WiretapVoicechatPlugin.voicechatServerApi.createEncoder(), this);
-        }
-        return audioPlayer;
+        if (this.audioPlayer != null) return this.audioPlayer;
+
+        de.maxhenkel.voicechat.api.ServerLevel serverLevel = WiretapVoicechatPlugin.voicechatServerApi.fromServerLevel(dimensionLocation.getLevel());
+        Position position = WiretapVoicechatPlugin.voicechatServerApi.createPosition(dimensionLocation.getX() + 0.5D, dimensionLocation.getY() + 0.5D, dimensionLocation.getZ() + 0.5D);
+
+        LocationalAudioChannel channel = WiretapVoicechatPlugin.voicechatServerApi.createLocationalAudioChannel(id, serverLevel, position);
+        channel.setCategory(WiretapVoicechatPlugin.WIRETAP_CATEGORY);
+        channel.setDistance(this.getOutputChannelRange());
+
+        this.audioPlayer = WiretapVoicechatPlugin.voicechatServerApi.createAudioPlayer(channel, WiretapVoicechatPlugin.voicechatServerApi.createEncoder(), this);
+
+        return this.audioPlayer;
     }
 
     @Nullable
@@ -157,5 +165,11 @@ public class SpeakerChannel implements Supplier<short[]> {
         if (remove != null) {
             remove.close();
         }
+    }
+
+    private float getOutputChannelRange() {
+        return this.maxRangeOverride > 0
+                ? this.maxRangeOverride
+                : Wiretap.SERVER_CONFIG.speakerAudioRange.get().floatValue();
     }
 }
