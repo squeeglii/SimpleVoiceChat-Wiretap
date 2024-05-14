@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom' version '1.3-SNAPSHOT'
+    id 'fabric-loom' version '1.6-SNAPSHOT'
     id 'com.matthewprenger.cursegradle' version '1.4.0'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
     id 'com.modrinth.minotaur' version '2.+'
@@ -8,6 +8,8 @@ plugins {
 
 sourceCompatibility = JavaVersion.VERSION_17
 targetCompatibility = JavaVersion.VERSION_17
+
+String mod_version = "%s+%s".formatted(mod_base_version, mod_version_meta)
 
 archivesBaseName = archives_base_name
 version = mod_version
@@ -26,8 +28,24 @@ repositories {
     }
 }
 
+loom {
+    runs {
+        client {
+            client()
+            runDir = "run/client"
+            ideConfigGenerated = true
+        }
+
+        server {
+            server()
+            runDir = "run/server"
+            ideConfigGenerated = true
+        }
+    }
+}
+
 runClient.doFirst {
-    args = ['--username', "henkelmax${new Random().nextInt(1000)}"]
+    args = ['--username', "SVC-Dev.${new Random().nextInt(1000)}"]
 }
 
 dependencies {
@@ -58,13 +76,13 @@ dependencies {
 }
 
 processResources {
-    filesMatching('fabric.mod.json') {
-        expand 'version': version,
-                'minecraft_dependency': minecraft_dependency,
-                'minecraft_version': minecraft_version,
-                'loader_version': loader_version,
-                'fabric_version': fabric_version,
-                'voicechat_dependency': voicechat_dependency
+    filteringCharset "UTF-8"
+
+    HashMap modifiedSrc = new HashMap<>(project.properties)
+    modifiedSrc.put("mod_version", mod_version)
+
+    filesMatching("fabric.mod.json") {
+        expand modifiedSrc
     }
 }
 
@@ -94,7 +112,7 @@ curseforge {
         addGameVersion 'Fabric'
         addGameVersion 'Java 17'
         mainArtifact(file("${buildDir}/libs/${archivesBaseName}-${version}.jar")) {
-            displayName = "[FABRIC][${minecraft_version}] ${mod_name} ${mod_version}"
+            displayName = "[FABRIC][${minecraft_version}] ${mod_name} ${mod_base_version}"
             relations {
                 requiredDependency 'simple-voice-chat'
             }
@@ -118,8 +136,8 @@ tasks.modrinthSyncBody.configure({
 modrinth {
     token = file("${rootDir}/modrinth_token.txt").exists() ? file("${rootDir}/modrinth_token.txt").text : ''
     projectId = modrinth_id
-    versionNumber = "fabric-${mod_version}"
-    versionName = "[FABRIC][${minecraft_version}] ${mod_name} ${mod_version}"
+    versionNumber = "${mod_version}"
+    versionName = "[FABRIC][${minecraft_version}] ${mod_name} ${mod_base_version}"
     uploadFile = remapJar
     versionType = release_type.toUpperCase()
     changelog = file('changelog.md').text
