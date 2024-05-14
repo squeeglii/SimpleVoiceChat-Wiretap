@@ -24,10 +24,9 @@
     "wiretap.mixins.json"
   ],
   "depends": {
-    "fabricloader": ">=${loader_version}",
-    "minecraft": ["1.20", "1.20.1"],
-    "java": ">=17",
-    "voicechat": ">=${minecraft_version}-${voicechat_dependency}"
+    "fabricloader": ">=${fabric_loader_version}",
+    "minecraft": "${tested_fabric_versions}",
+    "voicechat": ">=${minimum_minecraft_version}-${voicechat_dependency}"
   },
   "breaks": {
     "fabric": "<${fabric_version}"

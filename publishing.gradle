@@ -1,0 +1,81 @@
+import org.codehaus.groovy.runtime.MethodClosure
+
+import java.util.regex.Pattern
+
+static String getModrinthToken(Project project) {
+    File file = new File(project.getRootDir(), "modrinth_token.txt")
+
+    if(file.isDirectory() || !file.exists()) {
+        System.err.println("Unable to find a Modrinth token! (Add a modrinth_token.txt to root project dir)")
+        return ""
+    }
+
+    List<String> lines = file.readLines()
+
+    if(lines.size() == 0) {
+        System.err.println("Modrinth token file is empty!")
+        return ""
+    }
+
+    return lines.get(0)
+}
+
+static String getCurseToken(Project project) {
+    File file = new File(project.getRootDir(), "curseforge_api_key.txt")
+
+    if(file.isDirectory() || !file.exists()) {
+        System.err.println("Unable to find a CurseForge token! (Add a curseforge_api_key.txt to root project dir)")
+        return ""
+    }
+
+    List<String> lines = file.readLines()
+
+    if(lines.size() == 0) {
+        System.err.println("CurseForge token file is empty!")
+        return ""
+    }
+
+    return lines.get(0)
+}
+
+static String[] getSupportedVersions(Map<String, ?> properties) {
+    return properties.getOrDefault("tested_minecraft_versions", "")
+            .toString()
+            .trim()
+            .split(Pattern.quote(","))
+}
+
+static String getMinimumSupportedVersion(Map<String, ?> properties) {
+    String[] versions = getSupportedVersions(properties)
+
+    if(versions.length == 0)
+        throw new IllegalStateException("'tested_minecraft_versions' is empty (it's required)")
+
+    return versions[0]
+}
+
+static String getFabricVersionString(Map<String, ?> properties) {
+    String[] versions = getSupportedVersions(properties)
+    return versions.size() > 0
+            ? ">=%s".formatted(versions[0])
+            : "*"
+}
+
+static String getForgeVersionString(Map<String, ?> properties) {
+    String[] versions = getSupportedVersions(properties)
+    return versions.size() > 0
+            ? "[%s,)".formatted(versions[0])
+            : "*"
+}
+
+//TODO: The type warnings and lack of autocomplete are annoying. Fix this.
+ext {
+    getModrinthToken = this.&getModrinthToken as Closure<String>
+    getCurseToken = this.&getCurseToken as Closure<String>
+
+    getMinimumSupportedVersion = this.&getMinimumSupportedVersion as Closure<String>
+    getSupportedVersions = this.&getSupportedVersions as Closure<String[]>
+
+    getFabricVersionString = this.&getFabricVersionString as Closure<String>
+    getForgeVersionString = this.&getForgeVersionString as Closure<String>
+}
