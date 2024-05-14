@@ -1,4 +1,5 @@
 plugins {
+    id 'java'
     id 'fabric-loom' version '1.7-SNAPSHOT'
     id 'com.matthewprenger.cursegradle' version '1.4.0'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
@@ -6,10 +7,17 @@ plugins {
     id 'mod-update' version '2.0.0'
 }
 
-sourceCompatibility = JavaVersion.VERSION_17
-targetCompatibility = JavaVersion.VERSION_17
+sourceCompatibility = JavaVersion.toVersion(java_version)
+targetCompatibility = JavaVersion.toVersion(java_version)
 
-String mod_version = "%s+%s".formatted(mod_base_version, mod_version_meta)
+apply from: "$rootDir/publishing.gradle"
+
+String minimum_minecraft_version = getMinimumSupportedVersion(project.properties)
+
+String mod_version = "%s+%s.fabric".formatted(
+        mod_base_version,
+        minimum_minecraft_version
+)
 
 archivesBaseName = archives_base_name
 version = mod_version
@@ -49,9 +57,9 @@ runClient.doFirst {
 }
 
 dependencies {
-    minecraft "com.mojang:minecraft:${minecraft_version}"
+    minecraft "com.mojang:minecraft:${minimum_minecraft_version}"
     mappings loom.officialMojangMappings()
-    modImplementation "net.fabricmc:fabric-loader:${loader_version}"
+    modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
 
     Set<String> apiModules = [
             'fabric-api-base',
@@ -80,6 +88,11 @@ processResources {
 
     HashMap modifiedSrc = new HashMap<>(project.properties)
     modifiedSrc.put("mod_version", mod_version)
+    modifiedSrc.put("minimum_minecraft_version", minimum_minecraft_version)
+
+    modifiedSrc.put("tested_fabric_versions", getFabricVersionString(modifiedSrc))
+    modifiedSrc.put("tested_forge_versions", getForgeVersionString(modifiedSrc))
+    modifiedSrc.put("tested_neoforge_versions", getForgeVersionString(modifiedSrc))
 
     filesMatching("fabric.mod.json") {
         expand modifiedSrc
@@ -88,7 +101,7 @@ processResources {
 
 tasks.withType(JavaCompile).configureEach {
     it.options.encoding = 'UTF-8'
-    it.options.release = 17
+    it.options.release = Integer.valueOf(java_version)
 }
 
 java {
@@ -102,29 +115,48 @@ jar {
 }
 
 curseforge {
-    apiKey = file('curseforge_api_key.txt').exists() ? file('curseforge_api_key.txt').text : ''
+    String[] testedVersions = getSupportedVersions(project.properties);
+
+    if(testedVersions.length == 0)
+        throw new IllegalStateException("At least one version must be defined under 'tested_minecraft_versions' for publishing")
+
+    apiKey = getCurseToken(project)
+
     project {
         id = curse_id
         changelogType = 'markdown'
         changelog = file('changelog.md')
         releaseType = release_type
-        addGameVersion curseforge_minecraft_version
+
+
+        for(String ver: testedVersions) {
+            addGameVersion ver
+        }
+
         addGameVersion 'Fabric'
-        addGameVersion 'Java 17'
+        addGameVersion 'Java %s'.formatted(java_version)
+
         mainArtifact(file("${buildDir}/libs/${archivesBaseName}-${version}.jar")) {
-            displayName = "[FABRIC][${minecraft_version}] ${mod_name} ${mod_base_version}"
+            displayName = "[FABRIC][${minimum_minecraft_version}] ${mod_name} ${mod_base_version}"
             relations {
                 requiredDependency 'simple-voice-chat'
             }
         }
+
         afterEvaluate {
             uploadTask.dependsOn(remapJar)
         }
     }
+
     options {
+        var shouldPublish = project.properties["debug_publishing"]
+        if(shouldPublish != null && shouldPublish.toString().equalsIgnoreCase("true"))
+            debug = true
+
         forgeGradleIntegration = false
     }
 }
+
 
 tasks.modrinth.configure({
     group = 'upload'
@@ -134,26 +166,39 @@ tasks.modrinthSyncBody.configure({
 })
 
 modrinth {
-    token = file("${rootDir}/modrinth_token.txt").exists() ? file("${rootDir}/modrinth_token.txt").text : ''
+    String[] testedVersions = getSupportedVersions(project.properties)
+
+    if(testedVersions.length == 0)
+        throw new IllegalStateException("At least one version must be defined under 'tested_minecraft_versions' for publishing")
+
+    token = getModrinthToken(project)
     projectId = modrinth_id
-    versionNumber = "${mod_version}"
-    versionName = "[FABRIC][${minecraft_version}] ${mod_name} ${mod_base_version}"
-    uploadFile = remapJar
     versionType = release_type.toUpperCase()
     changelog = file('changelog.md').text
-    gameVersions = [minecraft_version]
-    loaders = ['fabric']
+
+    versionName = "[FABRIC][${minimum_minecraft_version}] ${mod_name} ${mod_base_version}"
+    versionNumber = "${mod_version}"
+
+    uploadFile = remapJar
+    loaders = ['fabric', 'quilt']
+    gameVersions = Arrays.asList(testedVersions)
+
     syncBodyFrom = file('readme.md').text
+
     dependencies {
         required.project '9eGKb6K1' // Simple Voice Chat
     }
+
+    var shouldPublish = project.properties["debug_publishing"]
+    if(shouldPublish != null && shouldPublish.toString().equalsIgnoreCase("true"))
+        setDebugMode(true)
 }
 tasks.modrinth.dependsOn(build)
 
 modUpdate {
     serverURL = 'https://update.maxhenkel.de/'
     modID = mod_id
-    gameVersion = minecraft_version
+    gameVersion = minimum_minecraft_version
     modLoader = 'fabric'
     modVersion = mod_version
     changelogFile = file('changelog.md')
