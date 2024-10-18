@@ -26,10 +26,14 @@ import java.util.*;
 
 public class HeadUtils {
 
+    public static final String NBT_DEVICE = "wiretap_data";
+
+    public static final String NBT_IS_SPEAKER = "is_speaker";
+    public static final String NBT_PAIR_ID = "pair_id";
     public static final String NBT_SPEAKER_RANGE = "speaker_range";
 
-    public static final String MICROPHONE = "microphone-aa41dc91-b8f1-4d4e-8c2d-5d95d541748c";
-    public static final String SPEAKER = "speaker-aa41dc91-b8f1-4d4e-8c2d-5d95d541748c";
+    public static final String MICROPHONE = "wiretap_mic";
+    public static final String SPEAKER = "wiretap_speaker";
 
     public static ItemStack createMicrophone(UUID id) {
         return createHead("Microphone", id, MICROPHONE, Wiretap.SERVER_CONFIG.microphoneSkinUrl.get());

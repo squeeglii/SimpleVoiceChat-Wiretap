@@ -8,9 +8,9 @@ import de.maxhenkel.voicechat.api.events.MicrophonePacketEvent;
 import de.maxhenkel.wiretap.Wiretap;
 import de.maxhenkel.wiretap.utils.HeadUtils;
 import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.NbtUtils;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.component.ResolvableProfile;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.SkullBlockEntity;
 import net.minecraft.world.phys.Vec3;
@@ -40,26 +40,29 @@ public class WiretapManager {
         if (!(skullBlockEntity.getLevel() instanceof ServerLevel serverLevel)) {
             return;
         }
-        GameProfile ownerProfile = skullBlockEntity.getOwnerProfile();
-        if (ownerProfile == null) {
+
+        IWiretapDevice wiretapDevice = (IWiretapDevice) skullBlockEntity;
+
+        if(wiretapDevice.wiretap$getDeviceType() == DeviceType.NON_WIRETAP) {
+            Wiretap.LOGGER.warn("Attempted to load wiretap on unrecognised device skull @ %s".formatted(skullBlockEntity.getBlockPos()));
             return;
         }
 
-        UUID microphone = HeadUtils.getMicrophone(ownerProfile);
-        if (microphone != null) {
-            microphones.put(microphone, new DimensionLocation(serverLevel, skullBlockEntity.getBlockPos()));
-            return;
-        }
+        DeviceType deviceType = wiretapDevice.wiretap$getDeviceType();
+        UUID pairId = wiretapDevice.wiretap$getPairId();
 
-        UUID speaker = HeadUtils.getSpeaker(ownerProfile);
-        if (speaker != null) {
-            IRangeOverridable rangeGetter = (IRangeOverridable) skullBlockEntity;
-            float range = rangeGetter.wiretap$getRangeOverride();
+        switch (deviceType) {
+            case NON_WIRETAP -> Wiretap.LOGGER.warn("Attempted to load wiretap on unrecognised device skull @ %s".formatted(skullBlockEntity.getBlockPos()));
+            case MICROPHONE -> this.microphones.put(pairId, new DimensionLocation(serverLevel, skullBlockEntity.getBlockPos()));
 
-            DimensionLocation loc = new DimensionLocation(serverLevel, skullBlockEntity.getBlockPos());
-            SpeakerChannel channel = new SpeakerChannel(this, speaker, loc, range);
-            this.speakers.put(speaker, channel);
-            return;
+            case SPEAKER -> {
+                IRangeOverridable rangeGetter = (IRangeOverridable) skullBlockEntity;
+                float range = rangeGetter.wiretap$getRangeOverride();
+
+                DimensionLocation loc = new DimensionLocation(serverLevel, skullBlockEntity.getBlockPos());
+                SpeakerChannel channel = new SpeakerChannel(this, pairId, loc, range);
+                this.speakers.put(pairId, channel);
+            }
         }
     }
 
@@ -140,24 +143,23 @@ public class WiretapManager {
         if (location == null) {
             return false;
         }
+
         ServerLevel level = location.getLevel();
         BlockPos pos = location.getPos();
         if (!location.isLoaded()) {
             return false;
         }
+
         BlockEntity blockEntity = level.getBlockEntity(pos);
-        if (!(blockEntity instanceof SkullBlockEntity skullBlockEntity)) {
+        if (!(blockEntity instanceof SkullBlockEntity skullBlockEntity)) return false;
+
+        IWiretapDevice wiretapDevice = (IWiretapDevice) skullBlockEntity;
+
+        if(wiretapDevice.wiretap$getDeviceType() != DeviceType.MICROPHONE) {
             return false;
         }
-        GameProfile ownerProfile = skullBlockEntity.getOwnerProfile();
-        if (ownerProfile == null) {
-            return false;
-        }
-        UUID realMicrophoneId = HeadUtils.getMicrophone(ownerProfile);
-        if (realMicrophoneId == null) {
-            return false;
-        }
-        return realMicrophoneId.equals(microphoneId);
+
+        return wiretapDevice.wiretap$getPairId().equals(microphoneId);
     }
 
     public boolean verifySpeakerLocation(UUID speakerId, @Nullable SpeakerChannel channel) {
@@ -174,15 +176,14 @@ public class WiretapManager {
         if (!(blockEntity instanceof SkullBlockEntity skullBlockEntity)) {
             return false;
         }
-        GameProfile ownerProfile = skullBlockEntity.getOwnerProfile();
-        if (ownerProfile == null) {
+
+        IWiretapDevice wiretapDevice = (IWiretapDevice) skullBlockEntity;
+
+        if(wiretapDevice.wiretap$getDeviceType() != DeviceType.SPEAKER) {
             return false;
         }
-        UUID realSpeakerId = HeadUtils.getSpeaker(ownerProfile);
-        if (realSpeakerId == null) {
-            return false;
-        }
-        return realSpeakerId.equals(speakerId);
+
+        return wiretapDevice.wiretap$getPairId().equals(speakerId);
     }
 
     public void removeMicrophone(UUID microphone) {

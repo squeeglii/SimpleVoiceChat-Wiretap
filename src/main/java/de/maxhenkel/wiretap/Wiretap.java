@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.resources.ResourceLocation;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -25,5 +26,9 @@ public class Wiretap implements ModInitializer {
         ServerLifecycleEvents.SERVER_STOPPING.register(LifecycleEvents::onServerStopping);
         CommandRegistrationCallback.EVENT.register(WiretapCommands::register);
         ServerPlayConnectionEvents.DISCONNECT.register(LifecycleEvents::onDisconnect);
+    }
+
+    public static ResourceLocation id(String path) {
+        return ResourceLocation.fromNamespaceAndPath(MODID, path);
     }
 }
