@@ -43,18 +43,22 @@ public class WiretapManager {
 
         IWiretapDevice wiretapDevice = (IWiretapDevice) skullBlockEntity;
 
+        if(wiretapDevice.wiretap$getDeviceType() == null) {
+            Wiretap.LOGGER.warn("Attempted to load null wiretap device on skull @ %s".formatted(skullBlockEntity.getBlockPos()));
+            return;
+        }
+
         if(wiretapDevice.wiretap$getDeviceType() == DeviceType.NON_WIRETAP) {
             Wiretap.LOGGER.warn("Attempted to load wiretap on unrecognised device skull @ %s".formatted(skullBlockEntity.getBlockPos()));
             return;
         }
 
+
         DeviceType deviceType = wiretapDevice.wiretap$getDeviceType();
         UUID pairId = wiretapDevice.wiretap$getPairId();
 
         switch (deviceType) {
-            case NON_WIRETAP -> Wiretap.LOGGER.warn("Attempted to load wiretap on unrecognised device skull @ %s".formatted(skullBlockEntity.getBlockPos()));
             case MICROPHONE -> this.microphones.put(pairId, new DimensionLocation(serverLevel, skullBlockEntity.getBlockPos()));
-
             case SPEAKER -> {
                 IRangeOverridable rangeGetter = (IRangeOverridable) skullBlockEntity;
                 float range = rangeGetter.wiretap$getRangeOverride();
@@ -64,6 +68,8 @@ public class WiretapManager {
                 this.speakers.put(pairId, channel);
             }
         }
+
+        Wiretap.LOGGER.info("Loaded wiretap device (%s#%s) skull @ %s".formatted(deviceType, pairId, skullBlockEntity.getBlockPos()));
     }
 
     public List<UUID> getNearbyMicrophones(ServerLevel level, Vec3 pos) {

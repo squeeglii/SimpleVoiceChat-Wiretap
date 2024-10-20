@@ -1,7 +1,8 @@
 package de.maxhenkel.wiretap.wiretap;
 
-public interface IRangeOverridable {
+public interface IRangeOverridable  {
 
     float wiretap$getRangeOverride();
+    boolean wiretap$isRangeOverriden();
 
 }

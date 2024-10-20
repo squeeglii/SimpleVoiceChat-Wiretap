@@ -8,16 +8,23 @@ import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.properties.PropertyMap;
 import com.mojang.util.UUIDTypeAdapter;
 import de.maxhenkel.wiretap.Wiretap;
+import de.maxhenkel.wiretap.item.WiretapDataComponents;
+import de.maxhenkel.wiretap.item.component.MicrophoneComponent;
+import de.maxhenkel.wiretap.item.component.SpeakerComponent;
+import de.maxhenkel.wiretap.wiretap.DeviceType;
+import de.maxhenkel.wiretap.wiretap.IRangeOverridable;
+import de.maxhenkel.wiretap.wiretap.IWiretapDevice;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.nbt.StringTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.util.Unit;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.PlayerHeadItem;
+import net.minecraft.world.item.component.ItemLore;
+import net.minecraft.world.item.component.ResolvableProfile;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import org.jetbrains.annotations.Nullable;
 
@@ -36,64 +43,63 @@ public class HeadUtils {
     public static final String SPEAKER = "wiretap_speaker";
 
     public static ItemStack createMicrophone(UUID id) {
-        return createHead("Microphone", id, MICROPHONE, Wiretap.SERVER_CONFIG.microphoneSkinUrl.get());
-    }
-
-    public static ItemStack createSpeaker(UUID id) {
-        return HeadUtils.createSpeaker(id, -1f);
-    }
-
-    public static ItemStack createSpeaker(UUID id, float range) {
-        ItemStack stack = createHead("Speaker", id, SPEAKER, Wiretap.SERVER_CONFIG.speakerSkinUrl.get());
+        ItemStack stack = createHead("Microphone", id, MICROPHONE, Wiretap.SERVER_CONFIG.microphoneSkinUrl.get());
         CompoundTag blockEntityTag = new CompoundTag();
+        CompoundTag deviceTag = new CompoundTag();
 
-        blockEntityTag.putFloat(HeadUtils.NBT_SPEAKER_RANGE, range);
-        PlayerHeadItem.setBlockEntityData(stack, BlockEntityType.SKULL, blockEntityTag);
+        deviceTag.putBoolean(HeadUtils.NBT_IS_SPEAKER, false);
+        deviceTag.putUUID(HeadUtils.NBT_PAIR_ID, id);
+
+        blockEntityTag.put(NBT_DEVICE, deviceTag);
+
+
+        //PlayerHeadItem.setBlockEntityData(stack, BlockEntityType.SKULL, blockEntityTag);
+
+        stack.set(WiretapDataComponents.MICROPHONE, new MicrophoneComponent(id));
 
         return stack;
     }
 
-    @Nullable
-    public static UUID getMicrophone(GameProfile profile) {
-        if (profile == null) {
-            return null;
-        }
-        if (!profile.getName().equals(MICROPHONE)) {
-            return null;
-        }
-        return profile.getId();
+    public static ItemStack createSpeaker(UUID id) {
+        return HeadUtils.createSpeaker(id, null);
     }
 
-    @Nullable
-    public static UUID getSpeaker(GameProfile profile) {
-        if (profile == null) {
-            return null;
+    public static ItemStack createSpeaker(UUID id, Float range) {
+        ItemStack stack = createHead("Speaker", id, SPEAKER, Wiretap.SERVER_CONFIG.speakerSkinUrl.get());
+        CompoundTag blockEntityTag = new CompoundTag();
+        CompoundTag deviceTag = new CompoundTag();
+
+        if(range != null) {
+            deviceTag.putFloat(HeadUtils.NBT_SPEAKER_RANGE, range);
         }
-        if (!profile.getName().equals(SPEAKER)) {
-            return null;
-        }
-        return profile.getId();
+
+        deviceTag.putBoolean(HeadUtils.NBT_IS_SPEAKER, true);
+        deviceTag.putUUID(HeadUtils.NBT_PAIR_ID, id);
+
+        blockEntityTag.put(NBT_DEVICE, deviceTag);
+
+        //PlayerHeadItem.setBlockEntityData(stack, BlockEntityType.SKULL, blockEntityTag);
+        stack.set(WiretapDataComponents.SPEAKER, new SpeakerComponent(id, range));
+
+        return stack;
     }
 
-    public static ItemStack createHead(String itemName, UUID id, String name, String skinUrl) {
+    public static ItemStack createHead(String itemName, UUID deviceId, String name, String skinUrl) {
         ItemStack stack = new ItemStack(Items.PLAYER_HEAD);
-        CompoundTag tag = stack.getOrCreateTag();
 
-        MutableComponent loreComponent = Component.literal("ID: %s".formatted(id.toString())).withStyle(style -> style.withItalic(false)).withStyle(ChatFormatting.GRAY);
+        GameProfile gameProfile = getGameProfile(deviceId, name, skinUrl);
+
+        MutableComponent loreComponent = Component.literal("ID: %s".formatted(deviceId.toString())).withStyle(style -> style.withItalic(false)).withStyle(ChatFormatting.GRAY);
         MutableComponent nameComponent = Component.literal(itemName).withStyle(style -> style.withItalic(false).withColor(ChatFormatting.WHITE));
 
-        ListTag lore = new ListTag();
-        lore.add(0, StringTag.valueOf(Component.Serializer.toJson(loreComponent)));
-        CompoundTag display = new CompoundTag();
-        display.putString(ItemStack.TAG_DISPLAY_NAME, Component.Serializer.toJson(nameComponent));
-        display.put(ItemStack.TAG_LORE, lore);
-        tag.put(ItemStack.TAG_DISPLAY, display);
-        tag.putInt("HideFlags", ItemStack.TooltipPart.ADDITIONAL.getMask());
+        ItemLore lore = new ItemLore(List.of(loreComponent));
 
-        GameProfile gameProfile = getGameProfile(id, name, skinUrl);
-        tag.put("SkullOwner", NbtUtils.writeGameProfile(new CompoundTag(), gameProfile));
+        stack.set(DataComponents.LORE, lore);
+        stack.set(DataComponents.ITEM_NAME, nameComponent);
+        stack.set(DataComponents.HIDE_ADDITIONAL_TOOLTIP, Unit.INSTANCE); // ???
 
-        stack.setTag(tag);
+        ResolvableProfile resolvableProfile = new ResolvableProfile(gameProfile);
+        stack.set(DataComponents.PROFILE, resolvableProfile);
 
         return stack;
     }
@@ -106,16 +112,13 @@ public class HeadUtils {
 
         List<Property> textures = new ArrayList<>();
 
-
         Map<MinecraftProfileTexture.Type, MinecraftProfileTexture> textureMap = new HashMap<>();
         textureMap.put(MinecraftProfileTexture.Type.SKIN, new MinecraftProfileTexture(skinUrl, null));
 
         String json = gson.toJson(new MinecraftTexturesPayload(textureMap));
-
         String base64Payload = Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8));
 
         textures.add(new Property("Value", base64Payload));
-
         properties.putAll("textures", textures);
 
         return gameProfile;

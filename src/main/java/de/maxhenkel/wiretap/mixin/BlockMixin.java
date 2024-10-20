@@ -3,6 +3,7 @@ package de.maxhenkel.wiretap.mixin;
 import com.mojang.authlib.GameProfile;
 import de.maxhenkel.wiretap.Wiretap;
 import de.maxhenkel.wiretap.utils.HeadUtils;
+import de.maxhenkel.wiretap.wiretap.IRangeOverridable;
 import de.maxhenkel.wiretap.wiretap.IWiretapDevice;
 import de.maxhenkel.wiretap.wiretap.WiretapManager;
 import net.minecraft.core.BlockPos;
@@ -49,9 +50,12 @@ public class BlockMixin {
 
             case SPEAKER -> {
                 UUID speaker = device.wiretap$getPairId();
+                IRangeOverridable rangeOverridable = (IRangeOverridable) device;
 
                 WiretapManager.getInstance().removeSpeaker(speaker);
-                ItemStack speakerItem = HeadUtils.createSpeaker(speaker);
+                ItemStack speakerItem = rangeOverridable.wiretap$isRangeOverriden()
+                        ? HeadUtils.createSpeaker(speaker, rangeOverridable.wiretap$getRangeOverride())
+                        : HeadUtils.createSpeaker(speaker);
                 Block.popResource(level, blockPos, speakerItem);
                 ci.cancel();
             }
