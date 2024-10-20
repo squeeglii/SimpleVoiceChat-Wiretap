@@ -44,19 +44,7 @@ public class HeadUtils {
 
     public static ItemStack createMicrophone(UUID id) {
         ItemStack stack = createHead("Microphone", id, MICROPHONE, Wiretap.SERVER_CONFIG.microphoneSkinUrl.get());
-        CompoundTag blockEntityTag = new CompoundTag();
-        CompoundTag deviceTag = new CompoundTag();
-
-        deviceTag.putBoolean(HeadUtils.NBT_IS_SPEAKER, false);
-        deviceTag.putUUID(HeadUtils.NBT_PAIR_ID, id);
-
-        blockEntityTag.put(NBT_DEVICE, deviceTag);
-
-
-        //PlayerHeadItem.setBlockEntityData(stack, BlockEntityType.SKULL, blockEntityTag);
-
         stack.set(WiretapDataComponents.MICROPHONE, new MicrophoneComponent(id));
-
         return stack;
     }
 
@@ -66,21 +54,7 @@ public class HeadUtils {
 
     public static ItemStack createSpeaker(UUID id, Float range) {
         ItemStack stack = createHead("Speaker", id, SPEAKER, Wiretap.SERVER_CONFIG.speakerSkinUrl.get());
-        CompoundTag blockEntityTag = new CompoundTag();
-        CompoundTag deviceTag = new CompoundTag();
-
-        if(range != null) {
-            deviceTag.putFloat(HeadUtils.NBT_SPEAKER_RANGE, range);
-        }
-
-        deviceTag.putBoolean(HeadUtils.NBT_IS_SPEAKER, true);
-        deviceTag.putUUID(HeadUtils.NBT_PAIR_ID, id);
-
-        blockEntityTag.put(NBT_DEVICE, deviceTag);
-
-        //PlayerHeadItem.setBlockEntityData(stack, BlockEntityType.SKULL, blockEntityTag);
         stack.set(WiretapDataComponents.SPEAKER, new SpeakerComponent(id, range));
-
         return stack;
     }
 
@@ -118,7 +92,7 @@ public class HeadUtils {
         String json = gson.toJson(new MinecraftTexturesPayload(textureMap));
         String base64Payload = Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8));
 
-        textures.add(new Property("Value", base64Payload));
+        textures.add(new Property("textures", base64Payload));
         properties.putAll("textures", textures);
 
         return gameProfile;
