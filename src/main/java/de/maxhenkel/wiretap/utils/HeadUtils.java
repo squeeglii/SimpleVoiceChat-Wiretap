@@ -46,24 +46,44 @@ public class HeadUtils {
     }
 
     public static ItemStack createSpeaker(UUID id, Float range) {
-        ItemStack stack = createHead("Speaker", id, SPEAKER, Wiretap.SERVER_CONFIG.speakerSkinUrl.get());
+        ItemStack stack = createHead("Speaker", id, range, SPEAKER, Wiretap.SERVER_CONFIG.speakerSkinUrl.get());
         stack.set(WiretapDataComponents.SPEAKER, new SpeakerComponent(id, range));
         return stack;
     }
 
     public static ItemStack createHead(String itemName, UUID deviceId, String name, String skinUrl) {
-        ItemStack stack = new ItemStack(Items.PLAYER_HEAD);
+        return createHead(itemName, deviceId, null, name, skinUrl);
+    }
 
+    public static ItemStack createHead(String itemName, UUID deviceId, Float range, String name, String skinUrl) {
+        ItemStack stack = new ItemStack(Items.PLAYER_HEAD);
         GameProfile gameProfile = getGameProfile(deviceId, name, skinUrl);
 
-        MutableComponent loreComponent = Component.literal("ID: %s".formatted(deviceId.toString())).withStyle(style -> style.withItalic(false)).withStyle(ChatFormatting.GRAY);
         MutableComponent nameComponent = Component.literal(itemName).withStyle(style -> style.withItalic(false).withColor(ChatFormatting.WHITE));
+        MutableComponent loreIdComponent = Component.literal("ID: %s".formatted(deviceId.toString()))
+                                                    .withStyle(style -> style.withItalic(false))
+                                                    .withStyle(ChatFormatting.GRAY);
 
-        ItemLore lore = new ItemLore(List.of(loreComponent));
+        ItemLore lore;
+
+        if(range == null) {
+            lore = new ItemLore(List.of(
+                    loreIdComponent
+            ));
+
+        } else {
+            MutableComponent speakerRadius = range < 0
+                    ? Component.literal("Radius: Infinite")
+                    : Component.literal("Radius: %.1f blocks".formatted(range));
+
+            lore = new ItemLore(List.of(
+                    loreIdComponent,
+                    speakerRadius.withStyle(style -> style.withItalic(false)).withStyle(ChatFormatting.GRAY)
+            ));
+        }
 
         stack.set(DataComponents.LORE, lore);
         stack.set(DataComponents.ITEM_NAME, nameComponent);
-        stack.set(DataComponents.HIDE_ADDITIONAL_TOOLTIP, Unit.INSTANCE); // ???
 
         ResolvableProfile resolvableProfile = new ResolvableProfile(gameProfile);
         stack.set(DataComponents.PROFILE, resolvableProfile);
