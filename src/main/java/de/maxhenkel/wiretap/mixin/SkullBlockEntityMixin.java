@@ -43,17 +43,6 @@ public class SkullBlockEntityMixin extends BlockEntity implements IRangeOverrida
     public void load(CompoundTag compoundTag, HolderLookup.Provider provider, CallbackInfo ci) {
         // Check if new format is present.
         if(!compoundTag.contains(HeadUtils.NBT_DEVICE)) {
-
-            // Check if old format is present - try and harvest the old data if possible.
-            if(compoundTag.contains(HeadUtils.NBT_SPEAKER_RANGE, Tag.TAG_FLOAT)) {
-                Wiretap.LOGGER.info("Old speaker format found. Upgrading.");
-                this.rangeOverride = compoundTag.getFloat(HeadUtils.NBT_SPEAKER_RANGE);
-
-                // TODO: Try and harvest profile data.
-
-                return;
-            }
-
             // Sanity check, mark device as definitely not wiretap owned if it
             // has a weird data structure.
             this.deviceType = DeviceType.NON_WIRETAP;
