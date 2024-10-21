@@ -37,14 +37,10 @@ public class WiretapCommands {
 
     public static int runWithoutRange(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         ServerPlayer player = context.getSource().getPlayerOrException();
-        Wiretap.LOGGER.info("WITHOUT");
-
         return WiretapCommands.processCommand(player, -1f);
     }
 
     public static int runWithRange(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        Wiretap.LOGGER.info("WITH");
-
         ServerPlayer player = context.getSource().getPlayerOrException();
         float range = FloatArgumentType.getFloat(context, "speaker_radius");
 

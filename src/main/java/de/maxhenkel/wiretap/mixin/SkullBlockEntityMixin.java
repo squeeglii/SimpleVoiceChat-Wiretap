@@ -6,14 +6,13 @@ import de.maxhenkel.wiretap.item.component.MicrophoneComponent;
 import de.maxhenkel.wiretap.item.component.SpeakerComponent;
 import de.maxhenkel.wiretap.utils.HeadUtils;
 import de.maxhenkel.wiretap.wiretap.DeviceType;
-import de.maxhenkel.wiretap.wiretap.IWiretapDevice;
 import de.maxhenkel.wiretap.wiretap.IRangeOverridable;
+import de.maxhenkel.wiretap.wiretap.IWiretapDevice;
 import de.maxhenkel.wiretap.wiretap.WiretapManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -31,32 +30,23 @@ import java.util.UUID;
 @Mixin(SkullBlockEntity.class)
 public class SkullBlockEntityMixin extends BlockEntity implements IRangeOverridable, IWiretapDevice {
 
-    @Unique
-    private UUID pairId = null;
+    @Unique private UUID pairId = null;
+    @Unique private DeviceType deviceType = null;
+    @Unique private Float rangeOverride = null;
 
-    @Unique
-    private DeviceType deviceType = DeviceType.NON_WIRETAP;
-
-    @Unique
-    private Float rangeOverride = null;
-
-    public SkullBlockEntityMixin(BlockEntityType<?> blockEntityType, BlockPos blockPos, BlockState blockState) {
-        super(blockEntityType, blockPos, blockState);
+    public SkullBlockEntityMixin(BlockPos blockPos, BlockState blockState) {
+        super(BlockEntityType.SKULL, blockPos, blockState);
     }
 
 
     @Inject(method = "loadAdditional", at = @At("RETURN"))
     public void load(CompoundTag compoundTag, HolderLookup.Provider provider, CallbackInfo ci) {
-        Wiretap.LOGGER.info("NBT LOAD");
-        Wiretap.LOGGER.info("%s".formatted(NbtUtils.prettyPrint(compoundTag)));
-
         // Check if new format is present.
         if(!compoundTag.contains(HeadUtils.NBT_DEVICE)) {
-            Wiretap.LOGGER.info("no modern format device");
 
             // Check if old format is present - try and harvest the old data if possible.
             if(compoundTag.contains(HeadUtils.NBT_SPEAKER_RANGE, Tag.TAG_FLOAT)) {
-                Wiretap.LOGGER.info("old speaker format found!!");
+                Wiretap.LOGGER.info("Old speaker format found. Upgrading.");
                 this.rangeOverride = compoundTag.getFloat(HeadUtils.NBT_SPEAKER_RANGE);
 
                 // TODO: Try and harvest profile data.
@@ -71,11 +61,6 @@ public class SkullBlockEntityMixin extends BlockEntity implements IRangeOverrida
         }
 
         // Load new format.
-        Wiretap.LOGGER.info("doing level checks");
-
-        if(this.level == null) return;
-        if(this.level.isClientSide) return;
-
         CompoundTag speakerData = compoundTag.getCompound(HeadUtils.NBT_DEVICE);
 
         this.pairId = speakerData.getUUID(HeadUtils.NBT_PAIR_ID);
@@ -89,22 +74,14 @@ public class SkullBlockEntityMixin extends BlockEntity implements IRangeOverrida
                     : null;
         }
 
-
         if(this.level != null && !this.level.isClientSide) {
-            Wiretap.LOGGER.info("Loading from NBT Load...");
             WiretapManager.getInstance().onLoadHead((SkullBlockEntity) (Object) this);
-        } else {
-            Wiretap.LOGGER.info("This was all client side! Ignore.");
         }
     }
 
     @Inject(method = "saveAdditional", at = @At("RETURN"))
     public void save(CompoundTag compoundTag, HolderLookup.Provider provider, CallbackInfo ci) {
-        Wiretap.LOGGER.info("NBT SAVE");
-
         if(this.deviceType == null || this.deviceType == DeviceType.NON_WIRETAP) {
-            Wiretap.LOGGER.warn("Non Wiretap or Null");
-            Wiretap.LOGGER.info("%s".formatted(NbtUtils.prettyPrint(compoundTag)));
             return;
         }
 
@@ -113,39 +90,35 @@ public class SkullBlockEntityMixin extends BlockEntity implements IRangeOverrida
         deviceData.putUUID(HeadUtils.NBT_PAIR_ID, this.pairId);
         deviceData.putBoolean(HeadUtils.NBT_IS_SPEAKER, this.deviceType == DeviceType.SPEAKER);
 
-        if(this.deviceType == DeviceType.SPEAKER || this.rangeOverride != null) {
+        if(this.deviceType == DeviceType.SPEAKER || this.wiretap$isRangeOverriden()) {
             deviceData.putFloat(HeadUtils.NBT_SPEAKER_RANGE, this.rangeOverride);
         }
 
         compoundTag.put(HeadUtils.NBT_DEVICE, deviceData);
-        Wiretap.LOGGER.info("%s".formatted(NbtUtils.prettyPrint(compoundTag)));
     }
 
     @Inject(method = "applyImplicitComponents(Lnet/minecraft/world/level/block/entity/BlockEntity$DataComponentInput;)V", at = @At("RETURN"))
     protected void applyExtraComponents(DataComponentInput dataComponentInput, CallbackInfo ci) {
-        // Speaker takes priority - a block having both is unsupported and the microphone will
-        // be ignored.
-
-        Wiretap.LOGGER.info("APPLY EXTRA");
-
+        // Mark both types as checked so they get removed from the held components.
         SpeakerComponent speakerComponent = dataComponentInput.get(WiretapDataComponents.SPEAKER);
+        MicrophoneComponent microphoneComponent = dataComponentInput.get(WiretapDataComponents.MICROPHONE);
+
+        // Speaker takes priority
         if(speakerComponent != null) {
-            Wiretap.LOGGER.info("SPEAKER");
             this.deviceType = DeviceType.SPEAKER;
-            this.rangeOverride = speakerComponent.range();
             this.pairId = speakerComponent.pairUUID();
+            this.rangeOverride = speakerComponent.range();
 
             if(this.level != null && !this.level.isClientSide)
                 WiretapManager.getInstance().onLoadHead((SkullBlockEntity) (Object) this);
             return;
         }
 
-        MicrophoneComponent microphoneComponent = dataComponentInput.get(WiretapDataComponents.MICROPHONE);
         if(microphoneComponent != null) {
-            Wiretap.LOGGER.info("MICROPHONE");
             this.deviceType = DeviceType.MICROPHONE;
-            this.rangeOverride = null;
             this.pairId = microphoneComponent.pairUUID();
+            this.rangeOverride = null;
+
             if(this.level != null && !this.level.isClientSide)
                 WiretapManager.getInstance().onLoadHead((SkullBlockEntity) (Object) this);
             return;
@@ -154,28 +127,10 @@ public class SkullBlockEntityMixin extends BlockEntity implements IRangeOverrida
 
     @Inject(method = "collectImplicitComponents(Lnet/minecraft/core/component/DataComponentMap$Builder;)V", at = @At("RETURN"))
     protected void collectExtraComponents(DataComponentMap.Builder builder, CallbackInfo ci) {
-        Wiretap.LOGGER.info("COLLECT EXTRA");
-
         switch (this.deviceType) {
-            case SPEAKER -> {
-                Wiretap.LOGGER.info("SPEAKER");
-                SpeakerComponent component = new SpeakerComponent(this.pairId, this.rangeOverride);
-                builder.set(WiretapDataComponents.SPEAKER, component);
-            }
-
-            case MICROPHONE -> {
-                Wiretap.LOGGER.info("MICROPHONE");
-                MicrophoneComponent component = new MicrophoneComponent(this.pairId);
-                builder.set(WiretapDataComponents.MICROPHONE, component);
-            }
+            case SPEAKER -> builder.set(WiretapDataComponents.SPEAKER, new SpeakerComponent(this.pairId, this.rangeOverride));
+            case MICROPHONE -> builder.set(WiretapDataComponents.MICROPHONE, new MicrophoneComponent(this.pairId));
         }
-    }
-
-    @Inject(method = "removeComponentsFromTag(Lnet/minecraft/nbt/CompoundTag;)V", at = @At("RETURN"))
-    protected void removeExtraComponentsFromTag(CompoundTag compoundTag, CallbackInfo ci) {
-        Wiretap.LOGGER.info("REMOVE EXTRA");
-        Wiretap.LOGGER.info("%s".formatted(NbtUtils.prettyPrint(compoundTag)));
-        compoundTag.remove(HeadUtils.NBT_DEVICE);
     }
 
     @Override
@@ -183,9 +138,9 @@ public class SkullBlockEntityMixin extends BlockEntity implements IRangeOverrida
         Level oldLevel = level;
         super.setLevel(newLevel);
 
-        // this actually seems to cause issues?
+        // This is needed otherwise the first loadAdditional on world load doesn't
+        // actually open the channel and register this.
         if (oldLevel == null && newLevel != null && !newLevel.isClientSide) {
-            Wiretap.LOGGER.info("SETTING LEVEL LOAD HEAD");
             WiretapManager.getInstance().onLoadHead((SkullBlockEntity) (Object) this);
         }
     }

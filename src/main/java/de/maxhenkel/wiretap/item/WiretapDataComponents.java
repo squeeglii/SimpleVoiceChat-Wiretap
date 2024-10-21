@@ -13,13 +13,13 @@ public class WiretapDataComponents {
     public static final DataComponentType<SpeakerComponent> SPEAKER = Registry.register(
             BuiltInRegistries.DATA_COMPONENT_TYPE,
             ResourceLocation.fromNamespaceAndPath(Wiretap.MODID, "speaker"),
-            DataComponentType.<SpeakerComponent>builder().persistent(SpeakerComponent.CODEC).build()
+            DataComponentType.<SpeakerComponent>builder().persistent(SpeakerComponent.CODEC).networkSynchronized(SpeakerComponent.STREAM_CODEC).cacheEncoding().build()
     );
 
     public static final DataComponentType<MicrophoneComponent> MICROPHONE = Registry.register(
             BuiltInRegistries.DATA_COMPONENT_TYPE,
             ResourceLocation.fromNamespaceAndPath(Wiretap.MODID, "microphone"),
-            DataComponentType.<MicrophoneComponent>builder().persistent(MicrophoneComponent.CODEC).build()
+            DataComponentType.<MicrophoneComponent>builder().persistent(MicrophoneComponent.CODEC).networkSynchronized(MicrophoneComponent.STREAM_CODEC).cacheEncoding().build()
     );
 
     public static void init() {

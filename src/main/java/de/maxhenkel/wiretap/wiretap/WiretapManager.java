@@ -2,15 +2,12 @@ package de.maxhenkel.wiretap.wiretap;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.mojang.authlib.GameProfile;
 import de.maxhenkel.voicechat.api.VoicechatConnection;
 import de.maxhenkel.voicechat.api.events.MicrophonePacketEvent;
 import de.maxhenkel.wiretap.Wiretap;
-import de.maxhenkel.wiretap.utils.HeadUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.component.ResolvableProfile;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.SkullBlockEntity;
 import net.minecraft.world.phys.Vec3;
@@ -44,15 +41,14 @@ public class WiretapManager {
         IWiretapDevice wiretapDevice = (IWiretapDevice) skullBlockEntity;
 
         if(wiretapDevice.wiretap$getDeviceType() == null) {
-            Wiretap.LOGGER.warn("Attempted to load null wiretap device on skull @ %s".formatted(skullBlockEntity.getBlockPos()));
+            Wiretap.LOGGER.trace("Attempted to load null wiretap device on skull @ %s".formatted(skullBlockEntity.getBlockPos()));
             return;
         }
 
         if(wiretapDevice.wiretap$getDeviceType() == DeviceType.NON_WIRETAP) {
-            Wiretap.LOGGER.warn("Attempted to load wiretap on unrecognised device skull @ %s".formatted(skullBlockEntity.getBlockPos()));
+            Wiretap.LOGGER.trace("Attempted to load wiretap on unrecognised device skull @ %s".formatted(skullBlockEntity.getBlockPos()));
             return;
         }
-
 
         DeviceType deviceType = wiretapDevice.wiretap$getDeviceType();
         UUID pairId = wiretapDevice.wiretap$getPairId();
@@ -69,7 +65,7 @@ public class WiretapManager {
             }
         }
 
-        Wiretap.LOGGER.info("Loaded wiretap device (%s#%s) skull @ %s".formatted(deviceType, pairId, skullBlockEntity.getBlockPos()));
+        Wiretap.LOGGER.trace("Loaded wiretap device (%s#%s) skull @ %s".formatted(deviceType, pairId, skullBlockEntity.getBlockPos()));
     }
 
     public List<UUID> getNearbyMicrophones(ServerLevel level, Vec3 pos) {
