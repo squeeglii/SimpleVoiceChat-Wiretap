@@ -24,7 +24,7 @@ public class SpeakerChannel implements Supplier<short[]> {
     private final UUID id;
     private final Map<UUID, List<short[]>> packetBuffer;
     private final DimensionLocation dimensionLocation;
-    private final float maxRangeOverride; // if > 0, use this for range. Otherwise, use server config.
+    private final float range; // if > 0, use this for range. Otherwise, use server config.
 
     private final Map<UUID, OpusDecoder> decoders;
     private final SoundEffect effect;
@@ -32,11 +32,11 @@ public class SpeakerChannel implements Supplier<short[]> {
     private AudioPlayer audioPlayer;
 
 
-    public SpeakerChannel(WiretapManager wiretapManager, UUID id, DimensionLocation dimensionLocation, float rangeOverride) {
+    public SpeakerChannel(WiretapManager wiretapManager, UUID id, DimensionLocation dimensionLocation, float range) {
         this.wiretapManager = wiretapManager;
         this.id = id;
         this.dimensionLocation = dimensionLocation;
-        this.maxRangeOverride = rangeOverride;
+        this.range = range;
 
         this.packetBuffer = new HashMap<>();
         this.decoders = new HashMap<>();
@@ -168,8 +168,6 @@ public class SpeakerChannel implements Supplier<short[]> {
     }
 
     private float getOutputChannelRange() {
-        return this.maxRangeOverride > 0
-                ? this.maxRangeOverride
-                : Wiretap.SERVER_CONFIG.speakerAudioRange.get().floatValue();
+        return this.range;
     }
 }

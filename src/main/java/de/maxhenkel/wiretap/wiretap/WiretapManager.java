@@ -5,6 +5,8 @@ import com.google.common.cache.CacheBuilder;
 import de.maxhenkel.voicechat.api.VoicechatConnection;
 import de.maxhenkel.voicechat.api.events.MicrophonePacketEvent;
 import de.maxhenkel.wiretap.Wiretap;
+import de.maxhenkel.wiretap.item.SpeakerDevice;
+import de.maxhenkel.wiretap.item.WiretapDevice;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -13,10 +15,7 @@ import net.minecraft.world.level.block.entity.SkullBlockEntity;
 import net.minecraft.world.phys.Vec3;
 
 import javax.annotation.Nullable;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -38,15 +37,18 @@ public class WiretapManager {
             return;
         }
 
-        IWiretapDevice wiretapDevice = (IWiretapDevice) skullBlockEntity;
+        IWiretapDeviceHolder wiretapDevice = (IWiretapDeviceHolder) skullBlockEntity;
+        Optional<WiretapDevice> optDeviceData = wiretapDevice.wiretap$getDeviceData();
 
-        if(wiretapDevice.wiretap$getDeviceType() == null) {
-            Wiretap.LOGGER.trace("Attempted to load null wiretap device on skull @ %s".formatted(skullBlockEntity.getBlockPos()));
+        if(optDeviceData.isEmpty()) {
+            Wiretap.LOGGER.trace("Attempted to load wiretap on non-wiretap skull @ %s".formatted(skullBlockEntity.getBlockPos()));
             return;
         }
 
-        if(wiretapDevice.wiretap$getDeviceType() == DeviceType.NON_WIRETAP) {
-            Wiretap.LOGGER.trace("Attempted to load wiretap on unrecognised device skull @ %s".formatted(skullBlockEntity.getBlockPos()));
+        WiretapDevice deviceData = optDeviceData.get();
+
+        if(deviceData.getDeviceType() == DeviceType.NON_WIRETAP) {
+            Wiretap.LOGGER.trace("Attempted to load wiretap on malformed wiretap skull @ %s".formatted(skullBlockEntity.getBlockPos()));
             return;
         }
 
@@ -56,8 +58,10 @@ public class WiretapManager {
         switch (deviceType) {
             case MICROPHONE -> this.microphones.put(pairId, new DimensionLocation(serverLevel, skullBlockEntity.getBlockPos()));
             case SPEAKER -> {
-                IRangeOverridable rangeGetter = (IRangeOverridable) skullBlockEntity;
-                float range = rangeGetter.wiretap$getRangeOverride();
+                if(!(deviceData instanceof SpeakerDevice speakerDevice))
+                    throw new IllegalStateException("Device with type DeviceType.SPEAKER is not actually a SpeakerDevice");
+
+                float range = speakerDevice.getActiveRange();
 
                 DimensionLocation loc = new DimensionLocation(serverLevel, skullBlockEntity.getBlockPos());
                 SpeakerChannel channel = new SpeakerChannel(this, pairId, loc, range);
@@ -83,7 +87,7 @@ public class WiretapManager {
             return;
         }
         ServerPlayer player = (ServerPlayer) senderConnection.getPlayer().getPlayer();
-        ServerLevel serverLevel = player.serverLevel();
+        ServerLevel serverLevel = player.level();
 
         onAudio(serverLevel, player.getUUID(), player.position(), event.getPacket().getOpusEncodedData());
     }
@@ -155,7 +159,7 @@ public class WiretapManager {
         BlockEntity blockEntity = level.getBlockEntity(pos);
         if (!(blockEntity instanceof SkullBlockEntity skullBlockEntity)) return false;
 
-        IWiretapDevice wiretapDevice = (IWiretapDevice) skullBlockEntity;
+        IWiretapDeviceHolder wiretapDevice = (IWiretapDeviceHolder) skullBlockEntity;
 
         if(wiretapDevice.wiretap$getDeviceType() != DeviceType.MICROPHONE) {
             return false;
@@ -179,7 +183,7 @@ public class WiretapManager {
             return false;
         }
 
-        IWiretapDevice wiretapDevice = (IWiretapDevice) skullBlockEntity;
+        IWiretapDeviceHolder wiretapDevice = (IWiretapDeviceHolder) skullBlockEntity;
 
         if(wiretapDevice.wiretap$getDeviceType() != DeviceType.SPEAKER) {
             return false;

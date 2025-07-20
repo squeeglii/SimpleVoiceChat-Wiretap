@@ -4,7 +4,6 @@ import de.maxhenkel.configbuilder.ConfigBuilder;
 import de.maxhenkel.wiretap.command.WiretapCommands;
 import de.maxhenkel.wiretap.config.ServerConfig;
 import de.maxhenkel.wiretap.events.LifecycleEvents;
-import de.maxhenkel.wiretap.item.WiretapDataComponents;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -27,8 +26,6 @@ public class Wiretap implements ModInitializer {
         ServerLifecycleEvents.SERVER_STOPPING.register(LifecycleEvents::onServerStopping);
         CommandRegistrationCallback.EVENT.register(WiretapCommands::register);
         ServerPlayConnectionEvents.DISCONNECT.register(LifecycleEvents::onDisconnect);
-
-        WiretapDataComponents.init();
     }
 
     public static ResourceLocation id(String path) {

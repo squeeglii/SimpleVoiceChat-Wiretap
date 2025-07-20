@@ -1,8 +1,10 @@
 package de.maxhenkel.wiretap.mixin;
 
+import de.maxhenkel.wiretap.Wiretap;
+import de.maxhenkel.wiretap.item.WiretapDevice;
 import de.maxhenkel.wiretap.utils.HeadUtils;
-import de.maxhenkel.wiretap.wiretap.IRangeOverridable;
-import de.maxhenkel.wiretap.wiretap.IWiretapDevice;
+import de.maxhenkel.wiretap.wiretap.DeviceType;
+import de.maxhenkel.wiretap.wiretap.IWiretapDeviceHolder;
 import de.maxhenkel.wiretap.wiretap.WiretapManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Player;
@@ -19,6 +21,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Mixin(Block.class)
@@ -33,30 +36,31 @@ public class BlockMixin {
             return;
         }
 
-        IWiretapDevice device = (IWiretapDevice) skullBlockEntity;
+        IWiretapDeviceHolder device = (IWiretapDeviceHolder) skullBlockEntity;
+        Optional<WiretapDevice> optDeviceData = device.wiretap$getDeviceData();
+
+        if(optDeviceData.isEmpty())
+            return;   // Either malformed data or just not a wiretap head. Hard to tell without a mess.
+
+        WiretapDevice deviceData = optDeviceData.get();
+
+        if(deviceData.getDeviceType() == DeviceType.NON_WIRETAP) {
+            Wiretap.LOGGER.debug("Discarding 'NON_WIRETAP' but present device data drop.");
+            return;
+        }
+
+        UUID devicePairId = deviceData.getPairUUID();
 
         switch (device.wiretap$getDeviceType()) {
-            case MICROPHONE -> {
-                UUID microphone = device.wiretap$getPairId();
-
-                WiretapManager.getInstance().removeMicrophone(microphone);
-                ItemStack microphoneItem = HeadUtils.createMicrophone(microphone);
-                Block.popResource(level, blockPos, microphoneItem);
-                ci.cancel();
-            }
-
-            case SPEAKER -> {
-                UUID speaker = device.wiretap$getPairId();
-                IRangeOverridable rangeOverridable = (IRangeOverridable) device;
-
-                WiretapManager.getInstance().removeSpeaker(speaker);
-                ItemStack speakerItem = rangeOverridable.wiretap$isRangeOverriden()
-                        ? HeadUtils.createSpeaker(speaker, rangeOverridable.wiretap$getRangeOverride())
-                        : HeadUtils.createSpeaker(speaker);
-                Block.popResource(level, blockPos, speakerItem);
-                ci.cancel();
-            }
+            case MICROPHONE -> WiretapManager.getInstance().removeMicrophone(devicePairId);
+            case SPEAKER -> WiretapManager.getInstance().removeSpeaker(devicePairId);
         }
+
+        HeadUtils.createHead(deviceData).ifPresent(
+                stack -> Block.popResource(level, blockPos, stack)
+        );
+
+        ci.cancel();
     }
 
 }

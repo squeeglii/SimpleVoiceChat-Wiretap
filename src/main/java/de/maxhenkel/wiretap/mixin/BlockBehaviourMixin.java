@@ -2,7 +2,7 @@ package de.maxhenkel.wiretap.mixin;
 
 import de.maxhenkel.wiretap.wiretap.DeviceType;
 import de.maxhenkel.wiretap.wiretap.DimensionLocation;
-import de.maxhenkel.wiretap.wiretap.IWiretapDevice;
+import de.maxhenkel.wiretap.wiretap.IWiretapDeviceHolder;
 import de.maxhenkel.wiretap.wiretap.WiretapManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -47,7 +47,7 @@ public class BlockBehaviourMixin {
 
     @Unique
     private static void handleHeadData(Player player, SkullBlockEntity data) {
-        IWiretapDevice wiretapDevice = (IWiretapDevice) data;
+        IWiretapDeviceHolder wiretapDevice = (IWiretapDeviceHolder) data;
 
         if(wiretapDevice.wiretap$getDeviceType() != DeviceType.SPEAKER) return;
 
@@ -57,12 +57,12 @@ public class BlockBehaviourMixin {
         boolean verified = WiretapManager.getInstance().verifyMicrophoneLocation(speaker, microphoneLocation);
 
         if (verified) {
-            player.sendSystemMessage(Component.literal("Currently connected to %s".formatted(microphoneLocation)));
+            player.displayClientMessage(Component.literal("Currently connected to %s.".formatted(microphoneLocation)), true);
         } else {
             if (microphoneLocation != null && !microphoneLocation.isLoaded()) {
-                player.sendSystemMessage(Component.literal("Microphone is currently not in a loaded chunk"));
+                player.displayClientMessage(Component.literal("Microphone is currently not in a loaded chunk."), true);
             } else {
-                player.sendSystemMessage(Component.literal("Microphone is currently not in a loaded chunk or not connected to a microphone"));
+                player.displayClientMessage(Component.literal("Microphone is currently not in a loaded chunk or not connected to a microphone."), true);
             }
         }
     }

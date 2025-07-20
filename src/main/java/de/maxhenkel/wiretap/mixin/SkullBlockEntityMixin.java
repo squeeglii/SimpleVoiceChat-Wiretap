@@ -1,67 +1,45 @@
 package de.maxhenkel.wiretap.mixin;
 
-import de.maxhenkel.wiretap.Wiretap;
-import de.maxhenkel.wiretap.item.WiretapDataComponents;
-import de.maxhenkel.wiretap.item.component.MicrophoneComponent;
-import de.maxhenkel.wiretap.item.component.SpeakerComponent;
+import de.maxhenkel.wiretap.item.WiretapDevice;
 import de.maxhenkel.wiretap.utils.HeadUtils;
 import de.maxhenkel.wiretap.wiretap.DeviceType;
-import de.maxhenkel.wiretap.wiretap.IRangeOverridable;
-import de.maxhenkel.wiretap.wiretap.IWiretapDevice;
+import de.maxhenkel.wiretap.wiretap.IWiretapDeviceHolder;
 import de.maxhenkel.wiretap.wiretap.WiretapManager;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponentGetter;
 import net.minecraft.core.component.DataComponentMap;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.entity.SkullBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import javax.annotation.Nonnull;
+import java.util.Optional;
 import java.util.UUID;
 
 @Mixin(SkullBlockEntity.class)
-public class SkullBlockEntityMixin extends BlockEntity implements IRangeOverridable, IWiretapDevice {
+public class SkullBlockEntityMixin extends BlockEntity implements IWiretapDeviceHolder {
 
-    @Unique private UUID pairId = null;
-    @Unique private DeviceType deviceType = null;
-    @Unique private Float rangeOverride = null;
+    @Unique private WiretapDevice deviceData = null;
 
     public SkullBlockEntityMixin(BlockPos blockPos, BlockState blockState) {
         super(BlockEntityType.SKULL, blockPos, blockState);
     }
 
-
+    // block loading / saving ----
     @Inject(method = "loadAdditional", at = @At("RETURN"))
-    public void load(CompoundTag compoundTag, HolderLookup.Provider provider, CallbackInfo ci) {
-        // Check if new format is present.
-        if(!compoundTag.contains(HeadUtils.NBT_DEVICE)) {
-            // Sanity check, mark device as definitely not wiretap owned if it
-            // has a weird data structure.
-            this.deviceType = DeviceType.NON_WIRETAP;
-            return;
-        }
-
-        // Load new format.
-        CompoundTag speakerData = compoundTag.getCompound(HeadUtils.NBT_DEVICE);
-
-        this.pairId = speakerData.getUUID(HeadUtils.NBT_PAIR_ID);
-        this.deviceType = speakerData.getBoolean(HeadUtils.NBT_IS_SPEAKER)
-                ? DeviceType.SPEAKER
-                : DeviceType.MICROPHONE;
-
-        if(this.deviceType == DeviceType.SPEAKER) {
-            this.rangeOverride = speakerData.contains(HeadUtils.NBT_SPEAKER_RANGE, Tag.TAG_FLOAT)
-                    ? speakerData.getFloat(HeadUtils.NBT_SPEAKER_RANGE)
-                    : null;
-        }
+    public void load(ValueInput valueInput, CallbackInfo ci) {
+        this.deviceData = valueInput.read(HeadUtils.NBT_DEVICE, WiretapDevice.CODEC).orElse(null);
 
         if(this.level != null && !this.level.isClientSide) {
             WiretapManager.getInstance().onLoadHead((SkullBlockEntity) (Object) this);
@@ -69,58 +47,43 @@ public class SkullBlockEntityMixin extends BlockEntity implements IRangeOverrida
     }
 
     @Inject(method = "saveAdditional", at = @At("RETURN"))
-    public void save(CompoundTag compoundTag, HolderLookup.Provider provider, CallbackInfo ci) {
-        if(this.deviceType == null || this.deviceType == DeviceType.NON_WIRETAP) {
-            return;
+    public void save(ValueOutput valueOutput, CallbackInfo ci) {
+        if(this.deviceData != null) {
+            valueOutput.store(HeadUtils.NBT_DEVICE, this.deviceData.getSerialisationCodec(), this.deviceData);
         }
-
-        CompoundTag deviceData = new CompoundTag();
-
-        deviceData.putUUID(HeadUtils.NBT_PAIR_ID, this.pairId);
-        deviceData.putBoolean(HeadUtils.NBT_IS_SPEAKER, this.deviceType == DeviceType.SPEAKER);
-
-        if(this.deviceType == DeviceType.SPEAKER || this.wiretap$isRangeOverriden()) {
-            deviceData.putFloat(HeadUtils.NBT_SPEAKER_RANGE, this.rangeOverride);
-        }
-
-        compoundTag.put(HeadUtils.NBT_DEVICE, deviceData);
     }
 
-    @Inject(method = "applyImplicitComponents(Lnet/minecraft/world/level/block/entity/BlockEntity$DataComponentInput;)V", at = @At("RETURN"))
-    protected void applyExtraComponents(DataComponentInput dataComponentInput, CallbackInfo ci) {
+    // item conversion ---
+    @Inject(method = "applyImplicitComponents(Lnet/minecraft/core/component/DataComponentGetter;)V", at = @At("RETURN"))
+    protected void applyExtraComponents(DataComponentGetter dataComponentGetter, CallbackInfo ci) {
         // Mark both types as checked so they get removed from the held components.
-        SpeakerComponent speakerComponent = dataComponentInput.get(WiretapDataComponents.SPEAKER);
-        MicrophoneComponent microphoneComponent = dataComponentInput.get(WiretapDataComponents.MICROPHONE);
+        CustomData data = dataComponentGetter.get(DataComponents.CUSTOM_DATA);
 
-        // Speaker takes priority
-        if(speakerComponent != null) {
-            this.deviceType = DeviceType.SPEAKER;
-            this.pairId = speakerComponent.pairUUID();
-            this.rangeOverride = speakerComponent.range();
-
-            if(this.level != null && !this.level.isClientSide)
-                WiretapManager.getInstance().onLoadHead((SkullBlockEntity) (Object) this);
+        if(data == null) {
             return;
         }
 
-        if(microphoneComponent != null) {
-            this.deviceType = DeviceType.MICROPHONE;
-            this.pairId = microphoneComponent.pairUUID();
-            this.rangeOverride = null;
+        Optional<WiretapDevice> wiretapDevice = data.copyTag().read(HeadUtils.NBT_DEVICE, WiretapDevice.CODEC);
 
-            if(this.level != null && !this.level.isClientSide)
-                WiretapManager.getInstance().onLoadHead((SkullBlockEntity) (Object) this);
+        if(wiretapDevice.isEmpty())
             return;
+
+        this.deviceData = wiretapDevice.get();
+
+        if(this.wiretap$getDeviceType() != DeviceType.NON_WIRETAP && this.level != null && !this.level.isClientSide) {
+            WiretapManager.getInstance().onLoadHead((SkullBlockEntity) (Object) this);
         }
     }
 
     @Inject(method = "collectImplicitComponents(Lnet/minecraft/core/component/DataComponentMap$Builder;)V", at = @At("RETURN"))
     protected void collectExtraComponents(DataComponentMap.Builder builder, CallbackInfo ci) {
-        switch (this.deviceType) {
-            case SPEAKER -> builder.set(WiretapDataComponents.SPEAKER, new SpeakerComponent(this.pairId, this.rangeOverride));
-            case MICROPHONE -> builder.set(WiretapDataComponents.MICROPHONE, new MicrophoneComponent(this.pairId));
-        }
+        if(this.deviceData == null) return;
+
+        CustomData data = this.deviceData.saveToNewCustomData();
+        builder.set(DataComponents.CUSTOM_DATA, data);
     }
+
+
 
     @Override
     public void setLevel(Level newLevel) {
@@ -135,24 +98,20 @@ public class SkullBlockEntityMixin extends BlockEntity implements IRangeOverrida
     }
 
     @Override
-    public float wiretap$getRangeOverride() {
-        return this.rangeOverride == null
-                ? -1.0f
-                : this.rangeOverride;
-    }
-
-    @Override
-    public boolean wiretap$isRangeOverriden() {
-        return this.rangeOverride != null;
-    }
-
-    @Override
+    @Nonnull
     public DeviceType wiretap$getDeviceType() {
-        return this.deviceType;
+        return this.deviceData == null ? DeviceType.NON_WIRETAP : this.deviceData.getDeviceType();
     }
 
     @Override
     public UUID wiretap$getPairId() {
-        return this.pairId;
+        if(this.deviceData == null)
+            throw new IllegalStateException("Failed to check device type before getting pair id");
+        return this.deviceData.getPairUUID();
+    }
+
+    @Override
+    public Optional<WiretapDevice> wiretap$getDeviceData() {
+        return Optional.ofNullable(this.deviceData);
     }
 }

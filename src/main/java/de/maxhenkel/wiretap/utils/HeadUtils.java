@@ -8,14 +8,14 @@ import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.properties.PropertyMap;
 import com.mojang.util.UUIDTypeAdapter;
 import de.maxhenkel.wiretap.Wiretap;
-import de.maxhenkel.wiretap.item.WiretapDataComponents;
-import de.maxhenkel.wiretap.item.component.MicrophoneComponent;
-import de.maxhenkel.wiretap.item.component.SpeakerComponent;
+import de.maxhenkel.wiretap.item.MicrophoneDevice;
+import de.maxhenkel.wiretap.item.SpeakerDevice;
+import de.maxhenkel.wiretap.item.WiretapDevice;
+import de.maxhenkel.wiretap.wiretap.DeviceType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.util.Unit;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ItemLore;
@@ -32,46 +32,47 @@ public class HeadUtils {
     public static final String NBT_PAIR_ID = "pair_id";
     public static final String NBT_SPEAKER_RANGE = "speaker_range";
 
-    public static final String MICROPHONE = "wiretap_mic";
-    public static final String SPEAKER = "wiretap_speaker";
-
-    public static ItemStack createMicrophone(UUID id) {
-        ItemStack stack = createHead("Microphone", id, MICROPHONE, Wiretap.SERVER_CONFIG.microphoneSkinUrl.get());
-        stack.set(WiretapDataComponents.MICROPHONE, new MicrophoneComponent(id));
-        return stack;
+    public static Optional<ItemStack> createMicrophone(UUID id) {
+        WiretapDevice deviceData = new MicrophoneDevice(id);
+        return createHead(deviceData);
     }
 
-    public static ItemStack createSpeaker(UUID id) {
-        return HeadUtils.createSpeaker(id, null);
+    public static Optional<ItemStack> createSpeaker(UUID id) {
+        return HeadUtils.createSpeakerWithForcedRange(id, null);
     }
 
-    public static ItemStack createSpeaker(UUID id, Float range) {
-        ItemStack stack = createHead("Speaker", id, range, SPEAKER, Wiretap.SERVER_CONFIG.speakerSkinUrl.get());
-        stack.set(WiretapDataComponents.SPEAKER, new SpeakerComponent(id, range));
-        return stack;
+    public static Optional<ItemStack> createSpeakerWithForcedRange(UUID id, Float range) {
+        WiretapDevice deviceData = new SpeakerDevice(id, range);
+        return createHead(deviceData);
     }
 
-    public static ItemStack createHead(String itemName, UUID deviceId, String name, String skinUrl) {
-        return createHead(itemName, deviceId, null, name, skinUrl);
-    }
+    public static Optional<ItemStack> createHead(WiretapDevice device) {
+        if(device == null) throw new IllegalArgumentException("Device data cannot be null while creating head item");
 
-    public static ItemStack createHead(String itemName, UUID deviceId, Float range, String name, String skinUrl) {
+        // item name -> DeviceType.displayName
+        // name -> DeviceType.internalName
+        // skinURL -> DeviceType.skinURL
+        // deviceId -> WiretapDevice.uuid
+
+        DeviceType type = device.getDeviceType();
+
+        if(type == DeviceType.NON_WIRETAP) {
+            Wiretap.LOGGER.warn("Failed to create head - type of device passed in was NON_WIRETAP. Data must be scuffed.", new Throwable("Trace"));
+            return Optional.empty();
+        }
+
         ItemStack stack = new ItemStack(Items.PLAYER_HEAD);
-        GameProfile gameProfile = getGameProfile(deviceId, name, skinUrl);
+        GameProfile gameProfile = HeadUtils.getGameProfile(device.getPairUUID(), type.getInternalName(), type.getSkinURL());
 
-        MutableComponent nameComponent = Component.literal(itemName).withStyle(style -> style.withItalic(false).withColor(ChatFormatting.WHITE));
-        MutableComponent loreIdComponent = Component.literal("ID: %s".formatted(deviceId.toString()))
+        MutableComponent nameComponent = Component.literal(type.getDisplayName()).withStyle(style -> style.withItalic(false).withColor(ChatFormatting.WHITE));
+        MutableComponent loreIdComponent = Component.literal("ID: %s".formatted(device.getPairUUID().toString()))
                                                     .withStyle(style -> style.withItalic(false))
                                                     .withStyle(ChatFormatting.GRAY);
 
         ItemLore lore;
 
-        if(range == null) {
-            lore = new ItemLore(List.of(
-                    loreIdComponent
-            ));
-
-        } else {
+        if(device instanceof SpeakerDevice speakerDevice && speakerDevice.isUsingRangeOverride()) {
+            float range = speakerDevice.getActiveRange();
             MutableComponent speakerRadius = range < 0
                     ? Component.literal("Radius: Infinite")
                     : Component.literal("Radius: %.1f blocks".formatted(range));
@@ -80,15 +81,23 @@ public class HeadUtils {
                     loreIdComponent,
                     speakerRadius.withStyle(style -> style.withItalic(false)).withStyle(ChatFormatting.GRAY)
             ));
+
+        } else {
+            lore = new ItemLore(List.of(
+                    loreIdComponent
+            ));
         }
 
+        device.serialiseIntoItemStack(stack);
+
         stack.set(DataComponents.LORE, lore);
-        stack.set(DataComponents.ITEM_NAME, nameComponent);
+        stack.set(DataComponents.CUSTOM_NAME, nameComponent);
 
         ResolvableProfile resolvableProfile = new ResolvableProfile(gameProfile);
         stack.set(DataComponents.PROFILE, resolvableProfile);
 
-        return stack;
+
+        return Optional.of(stack);
     }
 
     private static final Gson gson = new GsonBuilder().registerTypeAdapter(UUID.class, new UUIDTypeAdapter()).create();
