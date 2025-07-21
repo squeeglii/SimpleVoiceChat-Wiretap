@@ -87,7 +87,7 @@ public class WiretapManager {
             return;
         }
         ServerPlayer player = (ServerPlayer) senderConnection.getPlayer().getPlayer();
-        ServerLevel serverLevel = player.level();
+        ServerLevel serverLevel = player.serverLevel();
 
         onAudio(serverLevel, player.getUUID(), player.position(), event.getPacket().getOpusEncodedData());
     }

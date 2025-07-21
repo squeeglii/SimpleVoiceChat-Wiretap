@@ -6,17 +6,17 @@ import de.maxhenkel.wiretap.wiretap.DeviceType;
 import de.maxhenkel.wiretap.wiretap.IWiretapDeviceHolder;
 import de.maxhenkel.wiretap.wiretap.WiretapManager;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentGetter;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.entity.SkullBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.storage.ValueInput;
-import net.minecraft.world.level.storage.ValueOutput;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -38,8 +38,8 @@ public class SkullBlockEntityMixin extends BlockEntity implements IWiretapDevice
 
     // block loading / saving ----
     @Inject(method = "loadAdditional", at = @At("RETURN"))
-    public void load(ValueInput valueInput, CallbackInfo ci) {
-        this.deviceData = valueInput.read(HeadUtils.NBT_DEVICE, WiretapDevice.CODEC).orElse(null);
+    public void load(CompoundTag compoundTag, HolderLookup.Provider provider, CallbackInfo ci) {
+        this.deviceData = compoundTag.read(HeadUtils.NBT_DEVICE, WiretapDevice.CODEC).orElse(null);
 
         if(this.level != null && !this.level.isClientSide) {
             WiretapManager.getInstance().onLoadHead((SkullBlockEntity) (Object) this);
@@ -47,9 +47,9 @@ public class SkullBlockEntityMixin extends BlockEntity implements IWiretapDevice
     }
 
     @Inject(method = "saveAdditional", at = @At("RETURN"))
-    public void save(ValueOutput valueOutput, CallbackInfo ci) {
+    public void save(CompoundTag compoundTag, HolderLookup.Provider provider, CallbackInfo ci) {
         if(this.deviceData != null) {
-            valueOutput.store(HeadUtils.NBT_DEVICE, this.deviceData.getSerialisationCodec(), this.deviceData);
+            compoundTag.store(HeadUtils.NBT_DEVICE, this.deviceData.getSerialisationCodec(), this.deviceData);
         }
     }
 
