@@ -85,9 +85,14 @@ public class SpeakerChannel implements Supplier<short[]> {
         de.maxhenkel.voicechat.api.ServerLevel serverLevel = WiretapVoicechatPlugin.voicechatServerApi.fromServerLevel(dimensionLocation.getLevel());
         Position position = WiretapVoicechatPlugin.voicechatServerApi.createPosition(dimensionLocation.getX() + 0.5D, dimensionLocation.getY() + 0.5D, dimensionLocation.getZ() + 0.5D);
 
+        float rangeIn = this.getOutputChannelRange();
+        float audioRange = rangeIn < 0.0f
+                ? 60000000.0f
+                : rangeIn;
+
         LocationalAudioChannel channel = WiretapVoicechatPlugin.voicechatServerApi.createLocationalAudioChannel(id, serverLevel, position);
         channel.setCategory(WiretapVoicechatPlugin.WIRETAP_CATEGORY);
-        channel.setDistance(this.getOutputChannelRange());
+        channel.setDistance(audioRange);
 
         this.audioPlayer = WiretapVoicechatPlugin.voicechatServerApi.createAudioPlayer(channel, WiretapVoicechatPlugin.voicechatServerApi.createEncoder(), this);
 

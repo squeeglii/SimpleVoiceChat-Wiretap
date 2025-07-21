@@ -66,17 +66,13 @@ public abstract class AnvilMenuMixin extends ItemCombinerMenu {
         this.currentInputItem = itemStack.copy();
     }
 
-    @Inject(method = "onTake", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/Container;setItem(ILnet/minecraft/world/item/ItemStack;)V", ordinal = 0, shift = At.Shift.AFTER))
+    @Inject(method = "onTake", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/inventory/DataSlot;set(I)V", ordinal = 0, shift = At.Shift.AFTER))
     public void onTake(Player player, ItemStack result, CallbackInfo ci) {
-        if (!Wiretap.SERVER_CONFIG.anvilCrafting.get()) {
-            return;
-        }
-        if (player.level().isClientSide()) {
-            return;
-        }
-        if (currentResultId == null || currentInputItem == null) {
-            return;
-        }
+        if (!Wiretap.SERVER_CONFIG.anvilCrafting.get()) return;
+        if (player.level().isClientSide()) return;
+        if (currentResultId == null || currentInputItem == null) return;
+
+
         ItemStack inputItem = currentInputItem.copy();
         inputItem.setCount(currentInputItem.getCount() - 1);
         if (inputItem.getCount() <= 0) {
@@ -96,6 +92,7 @@ public abstract class AnvilMenuMixin extends ItemCombinerMenu {
         }
 
         ItemStack speaker = optSpeaker.get();
+
 
         boolean added = player.getInventory().add(speaker);
         if (!added || !speaker.isEmpty()) {

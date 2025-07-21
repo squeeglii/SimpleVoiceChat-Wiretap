@@ -32,6 +32,10 @@ public class WiretapCommands {
                                 Commands.argument("speaker_radius", FloatArgumentType.floatArg(0.0f))
                                         .executes(WiretapCommands::runWithRange)
                         )
+                        .then(
+                                Commands.literal("infinite")
+                                        .executes(WiretapCommands::runWithInfiniteRange)
+                        )
         );
 
 
@@ -41,7 +45,7 @@ public class WiretapCommands {
 
     public static int runWithoutRange(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         ServerPlayer player = context.getSource().getPlayerOrException();
-        return WiretapCommands.processCommand(player, -1f);
+        return WiretapCommands.processCommand(player, null);
     }
 
     public static int runWithRange(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
@@ -51,8 +55,13 @@ public class WiretapCommands {
         return WiretapCommands.processCommand(player, range);
     }
 
+    public static int runWithInfiniteRange(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        return WiretapCommands.processCommand(player, -1.0f);
+    }
 
-    public static int processCommand(ServerPlayer player, float range) {
+
+    public static int processCommand(ServerPlayer player, Float range) {
         try {
             UUID id = UUID.randomUUID();
             Optional<ItemStack> microphone = HeadUtils.createMicrophone(id);
@@ -61,12 +70,14 @@ public class WiretapCommands {
             if (microphone.isPresent() && speaker.isPresent()) {
                 player.getInventory().add(microphone.get());
                 player.getInventory().add(speaker.get());
-                player.displayClientMessage(Component.literal("You have been provided a wiretap kit.").withStyle(ChatFormatting.RED), false);
+                player.displayClientMessage(Component.literal("You have been provided with a wiretap kit."), false);
                 return 1;
+
             } else {
                 player.displayClientMessage(Component.literal("There was an error while spawning in your wiretap kit.").withStyle(ChatFormatting.RED), false);
                 return 0;
             }
+
         } catch (Exception e) {
             player.displayClientMessage(Component.literal("There was an unexpected error while spawning in your wiretap kit.").withStyle(ChatFormatting.RED), false);
             Wiretap.LOGGER.error("Error caught while executing command", e);
