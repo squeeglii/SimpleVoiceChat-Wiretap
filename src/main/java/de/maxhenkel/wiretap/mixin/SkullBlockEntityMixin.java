@@ -1,5 +1,6 @@
 package de.maxhenkel.wiretap.mixin;
 
+import de.maxhenkel.wiretap.Wiretap;
 import de.maxhenkel.wiretap.item.WiretapDevice;
 import de.maxhenkel.wiretap.utils.HeadUtils;
 import de.maxhenkel.wiretap.wiretap.DeviceType;
@@ -7,10 +8,11 @@ import de.maxhenkel.wiretap.wiretap.IWiretapDeviceHolder;
 import de.maxhenkel.wiretap.wiretap.WiretapManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponentGetter;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -39,7 +41,16 @@ public class SkullBlockEntityMixin extends BlockEntity implements IWiretapDevice
     // block loading / saving ----
     @Inject(method = "loadAdditional", at = @At("RETURN"))
     public void load(CompoundTag compoundTag, HolderLookup.Provider provider, CallbackInfo ci) {
-        this.deviceData = compoundTag.read(HeadUtils.NBT_DEVICE, WiretapDevice.CODEC).orElse(null);
+        if(!compoundTag.contains(HeadUtils.NBT_DEVICE, Tag.TAG_COMPOUND)) {
+            this.deviceData = null;
+            return;
+        }
+
+        CompoundTag tag = compoundTag.getCompound(HeadUtils.NBT_DEVICE);
+
+        this.deviceData = WiretapDevice.CODEC.parse(NbtOps.INSTANCE, tag)
+                .resultOrPartial(err -> Wiretap.LOGGER.error("Failed to read wiretap device ({}): {}", tag, err))
+                .orElse(null);
 
         if(this.level != null && !this.level.isClientSide) {
             WiretapManager.getInstance().onLoadHead((SkullBlockEntity) (Object) this);
@@ -49,21 +60,28 @@ public class SkullBlockEntityMixin extends BlockEntity implements IWiretapDevice
     @Inject(method = "saveAdditional", at = @At("RETURN"))
     public void save(CompoundTag compoundTag, HolderLookup.Provider provider, CallbackInfo ci) {
         if(this.deviceData != null) {
-            compoundTag.store(HeadUtils.NBT_DEVICE, this.deviceData.getSerialisationCodec(), this.deviceData);
+            compoundTag.put(HeadUtils.NBT_DEVICE, this.deviceData.getSerialisationCodec().encodeStart(NbtOps.INSTANCE, this.deviceData).getOrThrow());
         }
     }
 
     // item conversion ---
-    @Inject(method = "applyImplicitComponents(Lnet/minecraft/core/component/DataComponentGetter;)V", at = @At("RETURN"))
-    protected void applyExtraComponents(DataComponentGetter dataComponentGetter, CallbackInfo ci) {
+    @Inject(method = "applyImplicitComponents", at = @At("RETURN"))
+    protected void applyExtraComponents(DataComponentInput dataComponentInput, CallbackInfo ci) {
         // Mark both types as checked so they get removed from the held components.
-        CustomData data = dataComponentGetter.get(DataComponents.CUSTOM_DATA);
-
+        CustomData data = dataComponentInput.get(DataComponents.CUSTOM_DATA);
         if(data == null) {
             return;
         }
 
-        Optional<WiretapDevice> wiretapDevice = data.copyTag().read(HeadUtils.NBT_DEVICE, WiretapDevice.CODEC);
+        CompoundTag dataCompound = data.copyTag();
+        if(!dataCompound.contains(HeadUtils.NBT_DEVICE, Tag.TAG_COMPOUND)) {
+            this.deviceData = null;
+            return;
+        }
+
+        CompoundTag tag = dataCompound.getCompound(HeadUtils.NBT_DEVICE);
+        Optional<WiretapDevice> wiretapDevice = WiretapDevice.CODEC.parse(NbtOps.INSTANCE, tag)
+                .resultOrPartial(err -> Wiretap.LOGGER.error("Failed to read wiretap device ({}): {}", tag, err));
 
         if(wiretapDevice.isEmpty())
             return;

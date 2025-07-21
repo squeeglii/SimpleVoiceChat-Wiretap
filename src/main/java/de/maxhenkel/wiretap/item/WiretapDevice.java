@@ -8,6 +8,7 @@ import de.maxhenkel.wiretap.wiretap.DeviceType;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 
@@ -68,7 +69,7 @@ public abstract class WiretapDevice {
                 ? new CompoundTag()
                 : mergeWith.copyTag();
 
-        workingTag.store(HeadUtils.NBT_DEVICE, this.getSerialisationCodec(), this);
+        workingTag.put(HeadUtils.NBT_DEVICE, this.getSerialisationCodec().encodeStart(NbtOps.INSTANCE, this).getOrThrow());
 
         return CustomData.of(workingTag);
     }
