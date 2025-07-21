@@ -31,8 +31,8 @@ public abstract class AnvilMenuMixin extends ItemCombinerMenu {
     @Unique
     private ItemStack currentInputItem;
 
-    public AnvilMenuMixin(@Nullable MenuType<?> menuType, int i, Inventory inventory, ContainerLevelAccess containerLevelAccess, ItemCombinerMenuSlotDefinition itemCombinerMenuSlotDefinition) {
-        super(menuType, i, inventory, containerLevelAccess, itemCombinerMenuSlotDefinition);
+    public AnvilMenuMixin(@Nullable MenuType<?> menuType, int i, Inventory inventory, ContainerLevelAccess containerLevelAccess) {
+        super(menuType, i, inventory, containerLevelAccess);
     }
 
     @Inject(method = "createResult", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/inventory/ResultContainer;setItem(ILnet/minecraft/world/item/ItemStack;)V", ordinal = 4, shift = At.Shift.AFTER))
