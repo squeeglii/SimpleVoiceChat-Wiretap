@@ -13,6 +13,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.permissions.Permission;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.Optional;
@@ -22,7 +23,13 @@ public class WiretapCommands {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher, CommandBuildContext ctx, Commands.CommandSelection environment) {
         LiteralArgumentBuilder<CommandSourceStack> literalBuilder = Commands.literal("wiretap")
-                .requires((commandSource) -> commandSource.hasPermission(Wiretap.SERVER_CONFIG.commandPermissionLevel.get()));
+                .requires(source -> {
+                    Optional<Permission> optMinPermissionLevel = Wiretap.SERVER_CONFIG.getMinimumPermission();
+
+                    return optMinPermissionLevel.isPresent()
+                            ? source.permissions().hasPermission(optMinPermissionLevel.get())
+                            : true; // level == 0, always accept.
+                } );
 
         literalBuilder.then(
                 Commands.literal("items")

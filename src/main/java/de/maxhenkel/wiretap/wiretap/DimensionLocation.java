@@ -1,7 +1,7 @@
 package de.maxhenkel.wiretap.wiretap;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -18,8 +18,8 @@ public class DimensionLocation {
         this.pos = pos;
     }
 
-    public ResourceLocation getDimension() {
-        return level.dimension().location();
+    public Identifier getDimension() {
+        return level.dimension().identifier();
     }
 
     public ServerLevel getLevel() {
@@ -43,7 +43,7 @@ public class DimensionLocation {
     }
 
     public boolean isDimension(Level level) {
-        return level.dimension().location().equals(getDimension());
+        return level.dimension().identifier().equals(getDimension());
     }
 
     public double getDistance(Vec3 p) {
