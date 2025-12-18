@@ -8,12 +8,9 @@ import de.maxhenkel.wiretap.wiretap.IWiretapDeviceHolder;
 import de.maxhenkel.wiretap.wiretap.WiretapManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponentMap;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -39,8 +36,8 @@ public class SkullBlockEntityMixin extends BlockEntity implements IWiretapDevice
     }
 
     // block loading / saving ----
-    @Inject(method = "loadAdditional", at = @At("RETURN"))
-    public void load(CompoundTag compoundTag, HolderLookup.Provider provider, CallbackInfo ci) {
+    @Inject(method = "load", at = @At("RETURN"))
+    public void load(CompoundTag compoundTag, CallbackInfo ci) {
         if(!compoundTag.contains(HeadUtils.NBT_DEVICE, Tag.TAG_COMPOUND)) {
             this.deviceData = null;
             return;
@@ -52,18 +49,26 @@ public class SkullBlockEntityMixin extends BlockEntity implements IWiretapDevice
                 .resultOrPartial(err -> Wiretap.LOGGER.error("Failed to read wiretap device ({}): {}", tag, err))
                 .orElse(null);
 
+        // todo: do I check for nulls?
+
         if(this.level != null && !this.level.isClientSide) {
             WiretapManager.getInstance().onLoadHead((SkullBlockEntity) (Object) this);
         }
     }
 
     @Inject(method = "saveAdditional", at = @At("RETURN"))
-    public void save(CompoundTag compoundTag, HolderLookup.Provider provider, CallbackInfo ci) {
+    public void save(CompoundTag compoundTag, CallbackInfo ci) {
         if(this.deviceData != null) {
-            compoundTag.put(HeadUtils.NBT_DEVICE, this.deviceData.getSerialisationCodec().encodeStart(NbtOps.INSTANCE, this.deviceData).getOrThrow());
+            compoundTag.put(HeadUtils.NBT_DEVICE, this.deviceData.getSerialisationCodec().encodeStart(NbtOps.INSTANCE, this.deviceData).getOrThrow(false, Wiretap.LOGGER::error));
         }
     }
 
+    // 1.20.1 -- I believe these below are both handled by loading the skull data into
+    // the right section of the NBT. (WiretapDevice#serialiseIntoItemStack)
+    // Previous versions, I think this was fucked as the difference between item data and the
+    // block entity data was forgotten.
+
+    /*
     // item conversion ---
     @Inject(method = "applyImplicitComponents", at = @At("RETURN"))
     protected void applyExtraComponents(DataComponentInput dataComponentInput, CallbackInfo ci) {
@@ -92,7 +97,9 @@ public class SkullBlockEntityMixin extends BlockEntity implements IWiretapDevice
             WiretapManager.getInstance().onLoadHead((SkullBlockEntity) (Object) this);
         }
     }
+     */
 
+    /*
     @Inject(method = "collectImplicitComponents(Lnet/minecraft/core/component/DataComponentMap$Builder;)V", at = @At("RETURN"))
     protected void collectExtraComponents(DataComponentMap.Builder builder, CallbackInfo ci) {
         if(this.deviceData == null) return;
@@ -100,6 +107,7 @@ public class SkullBlockEntityMixin extends BlockEntity implements IWiretapDevice
         CustomData data = this.deviceData.saveToNewCustomData();
         builder.set(DataComponents.CUSTOM_DATA, data);
     }
+     */
 
 
 

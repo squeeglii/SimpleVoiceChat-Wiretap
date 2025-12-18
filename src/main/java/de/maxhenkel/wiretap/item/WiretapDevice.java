@@ -1,16 +1,18 @@
 package de.maxhenkel.wiretap.item;
 
+import com.mojang.authlib.GameProfile;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import de.maxhenkel.wiretap.Wiretap;
 import de.maxhenkel.wiretap.utils.HeadUtils;
 import de.maxhenkel.wiretap.wiretap.DeviceType;
 import net.minecraft.core.UUIDUtil;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.NbtUtils;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.PlayerHeadItem;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 
 import java.util.UUID;
 
@@ -55,23 +57,25 @@ public abstract class WiretapDevice {
     }
 
     public void serialiseIntoItemStack(ItemStack item) {
-        CustomData data = item.get(DataComponents.CUSTOM_DATA);
-        CustomData newData = this.saveToNewCustomData(data);
-        item.set(DataComponents.CUSTOM_DATA, newData);
+        // 1.20.1 -- instead of saving to item directly with tags, save to BLOCK ENTITY TAG inside of item.
+        // this /should/ copy all the item data inside that section to the block entity.
+
+        CompoundTag blockEntityData = this.saveToNewCustomData(null); // this makes a new tag anyway.
+        PlayerHeadItem.setBlockEntityData(item, BlockEntityType.SKULL, blockEntityData);
     }
 
-    public CustomData saveToNewCustomData() {
+    public CompoundTag saveToNewCustomData() {
         return this.saveToNewCustomData(null);
     }
 
-    public CustomData saveToNewCustomData(CustomData mergeWith) {
+    public CompoundTag saveToNewCustomData(CompoundTag mergeWith) {
         CompoundTag workingTag = mergeWith == null
                 ? new CompoundTag()
-                : mergeWith.copyTag();
+                : mergeWith.copy();
 
-        workingTag.put(HeadUtils.NBT_DEVICE, this.getSerialisationCodec().encodeStart(NbtOps.INSTANCE, this).getOrThrow());
+        workingTag.put(HeadUtils.NBT_DEVICE, this.getSerialisationCodec().encodeStart(NbtOps.INSTANCE, this).getOrThrow(false, Wiretap.LOGGER::error));
 
-        return CustomData.of(workingTag);
+        return workingTag;
     }
 
     public static WiretapDevice createDeviceData(UUID pairUUID, boolean isSpeaker) {

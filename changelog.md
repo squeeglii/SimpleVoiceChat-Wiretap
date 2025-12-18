@@ -1,10 +1,12 @@
-**Changelog (1.3.0)**
+## Changelog (1.3.0)
 
-- 1.21.2+ Support
-- Somewhat reverted using item components and brought back NBT/CustomData.
-  - Because of this, the mod is once again server-side only. No need to require it in client mod packs!
-- Fixed crash with anvil recipe
-- Command now properly lets you state an infinite range
+- Backport to 1.20.1
 
-Due to the item changes, *all* wiretap items from previous versions will be broken. Blocks should continue to work fine
-but you should back up worlds just in case.
+__**This update is incompatible with all previous versions of Wiretap, and will break existing Wiretap blocks & items.**__
+
+Changes include:
+
+- Improved command, now with infinite range
+- Rewritten saving & loading of blocks. Should be more stable now!
+- Fixed crash with Tardis Refined
+- Minor text changes

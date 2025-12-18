@@ -13,13 +13,16 @@ import de.maxhenkel.wiretap.item.SpeakerDevice;
 import de.maxhenkel.wiretap.item.WiretapDevice;
 import de.maxhenkel.wiretap.wiretap.DeviceType;
 import net.minecraft.ChatFormatting;
-import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtUtils;
+import net.minecraft.nbt.StringTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.component.ItemLore;
-import net.minecraft.world.item.component.ResolvableProfile;
+import net.minecraft.world.item.PlayerHeadItem;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -69,7 +72,7 @@ public class HeadUtils {
                                                     .withStyle(style -> style.withItalic(false))
                                                     .withStyle(ChatFormatting.GRAY);
 
-        ItemLore lore;
+        List<Component> lore;
 
         if(device instanceof SpeakerDevice speakerDevice && speakerDevice.isUsingRangeOverride()) {
             float range = speakerDevice.getActiveRange();
@@ -77,25 +80,37 @@ public class HeadUtils {
                     ? Component.literal("Radius: Infinite")
                     : Component.literal("Radius: %.1f blocks".formatted(range));
 
-            lore = new ItemLore(List.of(
+            lore = List.of(
                     loreIdComponent,
                     speakerRadius.withStyle(style -> style.withItalic(false)).withStyle(ChatFormatting.GRAY)
-            ));
+            );
 
         } else {
-            lore = new ItemLore(List.of(
+            lore = List.of(
                     loreIdComponent
-            ));
+            );
         }
 
+        // save other data to tag.
+        CompoundTag tag = stack.getOrCreateTag();
+        CompoundTag display = new CompoundTag();
+
+        ListTag loreTag = new ListTag();
+        for(int i = 0; i < lore.size(); i++) {
+            String tagData = Component.Serializer.toJson(lore.get(i));
+            loreTag.add(i, StringTag.valueOf(tagData));
+        }
+
+        display.putString(ItemStack.TAG_DISPLAY_NAME, Component.Serializer.toJson(nameComponent));
+        display.put(ItemStack.TAG_LORE, loreTag);
+
+        tag.put(ItemStack.TAG_DISPLAY, display);
+        tag.putInt("HideFlags", ItemStack.TooltipPart.ADDITIONAL.getMask());
+        tag.put("SkullOwner", NbtUtils.writeGameProfile(new CompoundTag(), gameProfile));
+        stack.setTag(tag);
+
+        // save speaker data & skin data to tag
         device.serialiseIntoItemStack(stack);
-
-        stack.set(DataComponents.LORE, lore);
-        stack.set(DataComponents.CUSTOM_NAME, nameComponent);
-
-        ResolvableProfile resolvableProfile = new ResolvableProfile(gameProfile);
-        stack.set(DataComponents.PROFILE, resolvableProfile);
-
 
         return Optional.of(stack);
     }
