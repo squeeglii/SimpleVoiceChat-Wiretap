@@ -1,3 +1,7 @@
+**Changelog (1.3.1) - 26.1+**
+
+- Custom Data on playerheads is no longer wiped.
+
 **Changelog (1.3.0)**
 
 - 1.21.6+ Support
