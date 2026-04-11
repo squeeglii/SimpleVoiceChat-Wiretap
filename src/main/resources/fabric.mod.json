@@ -1,14 +1,15 @@
 {
   "schemaVersion": 1,
-  "id": "wiretap",
+  "id": "${mod_id}",
   "version": "${version}",
-  "name": "Wiretap",
-  "description": "Wiretap",
+  "name": "${mod_title}",
+  "description": "Adds microphones & speakers to simple voice chat.",
   "authors": [
-    "Max Henkel"
+    "Max Henkel",
+    "Will Scully"
   ],
   "contact": {
-    "website": "https://modrepo.de"
+    "discord": "https://discord.gg/94c45XagEH"
   },
   "license": "All Rights Reserved",
   "environment": "*",
@@ -25,10 +26,11 @@
   ],
   "depends": {
     "fabricloader": ">=${fabric_loader_version}",
-    "minecraft": "${tested_fabric_versions}",
-    "voicechat": ">=${minimum_minecraft_version}-${voicechat_dependency}"
+    "minecraft": ">=${minecraft_dependency}",
+    "java": ">=25",
+    "voicechat": ">=${voicechat_api_version}+${minecraft_dependency}"
   },
   "breaks": {
-    "fabric": "<${fabric_version}"
+    "fabric-api": "<${fabric_api_version}"
   }
 }

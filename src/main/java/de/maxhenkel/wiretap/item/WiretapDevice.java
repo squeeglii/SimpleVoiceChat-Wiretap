@@ -2,7 +2,6 @@ package de.maxhenkel.wiretap.item;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import de.maxhenkel.wiretap.Wiretap;
 import de.maxhenkel.wiretap.utils.HeadUtils;
 import de.maxhenkel.wiretap.wiretap.DeviceType;
 import net.minecraft.core.UUIDUtil;

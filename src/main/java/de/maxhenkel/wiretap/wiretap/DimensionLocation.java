@@ -19,39 +19,39 @@ public class DimensionLocation {
     }
 
     public Identifier getDimension() {
-        return level.dimension().identifier();
+        return this.level.dimension().identifier();
     }
 
     public ServerLevel getLevel() {
-        return level;
+        return this.level;
     }
 
     public BlockPos getPos() {
-        return pos;
+        return this.pos;
     }
 
     public int getX() {
-        return pos.getX();
+        return this.pos.getX();
     }
 
     public int getY() {
-        return pos.getY();
+        return this.pos.getY();
     }
 
     public int getZ() {
-        return pos.getZ();
+        return this.pos.getZ();
     }
 
     public boolean isDimension(Level level) {
-        return level.dimension().identifier().equals(getDimension());
+        return level.dimension().identifier().equals(this.getDimension());
     }
 
     public double getDistance(Vec3 p) {
-        return Math.sqrt(p.distanceToSqr(pos.getX(), pos.getY(), pos.getZ()));
+        return Math.sqrt(p.distanceToSqr(this.pos.getX(), this.pos.getY(), this.pos.getZ()));
     }
 
     public boolean isLoaded() {
-        return level.isLoaded(pos);
+        return this.level.isLoaded(this.pos);
     }
 
     @Override
@@ -61,19 +61,19 @@ public class DimensionLocation {
 
         DimensionLocation that = (DimensionLocation) o;
 
-        if (!Objects.equals(getDimension(), that.getDimension())) return false;
-        return Objects.equals(pos, that.pos);
+        if (!Objects.equals(this.getDimension(), that.getDimension())) return false;
+        return Objects.equals(this.pos, that.pos);
     }
 
     @Override
     public int hashCode() {
-        int result = getDimension() != null ? getDimension().hashCode() : 0;
-        result = 31 * result + (pos != null ? pos.hashCode() : 0);
+        int result = this.getDimension() != null ? this.getDimension().hashCode() : 0;
+        result = 31 * result + (this.pos != null ? this.pos.hashCode() : 0);
         return result;
     }
 
     @Override
     public String toString() {
-        return "X %s, Y %s, Z %s in %s".formatted(getX(), getY(), getZ(), getDimension().toString());
+        return "X %s, Y %s, Z %s in %s".formatted(this.getX(), this.getY(), this.getZ(), this.getDimension().toString());
     }
 }

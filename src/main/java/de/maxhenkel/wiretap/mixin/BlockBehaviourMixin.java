@@ -57,12 +57,12 @@ public class BlockBehaviourMixin {
         boolean verified = WiretapManager.getInstance().verifyMicrophoneLocation(speaker, microphoneLocation);
 
         if (verified) {
-            player.displayClientMessage(Component.literal("Currently connected to %s.".formatted(microphoneLocation)), true);
+            player.sendOverlayMessage(Component.literal("Currently connected to %s.".formatted(microphoneLocation)));
         } else {
             if (microphoneLocation != null && !microphoneLocation.isLoaded()) {
-                player.displayClientMessage(Component.literal("Microphone is currently not in a loaded chunk."), true);
+                player.sendOverlayMessage(Component.literal("Microphone is currently not in a loaded chunk."));
             } else {
-                player.displayClientMessage(Component.literal("Microphone is currently not in a loaded chunk or not connected to a microphone."), true);
+                player.sendOverlayMessage(Component.literal("Microphone is currently not in a loaded chunk or not connected to a microphone."));
             }
         }
     }
