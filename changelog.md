@@ -1,6 +1,8 @@
 **Changelog (1.3.1) - 26.1+**
 
 - Custom Data on playerheads is no longer wiped.
+- Pick-Block now always provides the speaker & microphone rather than an empty player head
+- 26.1.x support
 
 **Changelog (1.3.0)**
 
