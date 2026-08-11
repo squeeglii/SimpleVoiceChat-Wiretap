@@ -7,7 +7,7 @@ import de.maxhenkel.wiretap.wiretap.IWiretapDeviceHolder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
-import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.entity.BlockEntityTypes;
 import net.minecraft.world.level.block.entity.SkullBlockEntity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -27,7 +27,7 @@ public class EnhancedPickBlockMixin {
                     target = "Lnet/minecraft/network/protocol/game/ServerboundPickItemFromBlockPacket;includeData()Z"
     ))
     private boolean includeDataOnRadio(boolean original, @Local(name = "level") ServerLevel level, @Local(name = "pos") BlockPos pos) {
-        Optional<SkullBlockEntity> optSkull = level.getBlockEntity(pos, BlockEntityType.SKULL);
+        Optional<SkullBlockEntity> optSkull = level.getBlockEntity(pos, BlockEntityTypes.SKULL);
 
         if(optSkull.isEmpty())
             return original;
