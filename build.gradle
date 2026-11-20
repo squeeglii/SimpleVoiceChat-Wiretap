@@ -4,7 +4,7 @@ plugins {
 
     id("com.gradleup.shadow") version "9.4.0" apply false
 
-    id("com.modrinth.minotaur") version "2.+" apply false
+    id("com.modrinth.minotaur") version "2.10.0" apply false
     id("net.darkhax.curseforgegradle") version "1.1.18" apply false
 }
 
@@ -12,27 +12,12 @@ import net.darkhax.curseforgegradle.TaskPublishCurseForge
 
 apply plugin: "java"
 apply plugin: "com.gradleup.shadow"
-apply plugin: "com.modrinth.minotaur"
-apply from: "$rootDir/publishing.gradle"
 
 String mod_version = "%s+%s".formatted(mod_base_version, mod_version_meta);
 
 base.archivesName = archives_base_name
 group = maven_group
 version = mod_version
-
-repositories {
-    mavenLocal()
-    mavenCentral()
-    maven { url = 'https://maven.fabricmc.net/' }
-    maven { url = 'https://maven.maxhenkel.de/repository/public' }
-    maven {
-        url = 'https://api.modrinth.com/maven'
-        content {
-            includeGroup "maven.modrinth"
-        }
-    }
-}
 
 loom {
     runs {
@@ -54,19 +39,46 @@ runClient.doFirst {
     args = ['--username', "SVC-Dev.${new Random().nextInt(1000)}"]
 }
 
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url "https://maven.terraformersmc.com/releases/" }
+    maven { url = 'https://maven.fabricmc.net/' }
+    maven { url = 'https://maven.maxhenkel.de/repository/public' }
+    maven {
+        url = 'https://api.modrinth.com/maven'
+        content {
+            includeGroup "maven.modrinth"
+        }
+    }
+}
+
+Set<String> fabricApiModules = [
+        'fabric-api-base',
+        'fabric-command-api-v2',
+        'fabric-networking-api-v1',
+        'fabric-lifecycle-events-v1',
+        'fabric-resource-loader-v1',
+]
+
+// Prevents transitive dependencies breaking build with newer fabricapi versions.
+// There's some pollution somewhere with 26.1.2 being labelled as 26.1 in the runtime deps.
+// This shouldn't be a problem in a prod environment, but this hack fixes the dev env.
+configurations.configureEach {
+    resolutionStrategy {
+        fabricApiModules.forEach {
+            var moduleMapping = fabricApi.module(it, fabric_api_version)
+            force("${moduleMapping.getGroup()}:${moduleMapping.getName()}:${moduleMapping.getVersion()}")
+        }
+    }
+}
+
 dependencies {
     minecraft "com.mojang:minecraft:${minecraft_dependency}"
 
     implementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
 
-    Set<String> apiModules = [
-            'fabric-api-base',
-            'fabric-command-api-v2',
-            'fabric-networking-api-v1',
-            'fabric-lifecycle-events-v1'
-    ]
-
-    apiModules.forEach {
+    fabricApiModules.forEach {
         include(implementation(fabricApi.module(it, fabric_api_version)))
     }
 
@@ -77,8 +89,15 @@ dependencies {
 
     implementation "de.maxhenkel.voicechat:voicechat-api:${voicechat_api_version}"
 
-    runtimeOnly "maven.modrinth:simple-voice-chat:fabric-${voicechat_mod_version}"
-    runtimeOnly "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
+
+    // Runtime:
+    runtimeOnly ("maven.modrinth:simple-voice-chat:fabric-${voicechat_mod_version}")
+    runtimeOnly ("net.fabricmc.fabric-api:fabric-api:${fabric_api_version}")
+
+    // Optional, dev env.
+    runtimeOnly ("com.terraformersmc:modmenu:${modmenu_version}") {
+        exclude group: "net.fabricmc.fabric-api"
+    }
 }
 
 processResources {
@@ -107,74 +126,101 @@ jar {
     }
 }
 
-
-tasks.register('curseforge', TaskPublishCurseForge) {
-    group = "upload"
-    description = "Publishes project to CurseForge"
-
-    String mcVer = project.properties["minecraft_dependency"]
-    String projectVer = project.properties["mod_base_version"]
-    String projectId = project.properties["curse_id"]
-
-    if(projectVer == null || projectVer.isBlank())
-        throw new IllegalStateException("Project version should not be null when publishing.")
-
-    apiToken = getCurseToken(project)
-
-    var shouldPublish = project.properties["debug_publishing"]
-    if(shouldPublish != null && shouldPublish.toString().equalsIgnoreCase("true"))
-        debugMode = true
-
-    def mainFile = upload(projectId, shadowJar)
-    mainFile.displayName = "[FABRIC][${mcVer}] ${mod_title} v${projectVer}"
-    mainFile.addModLoader("Fabric")
-    mainFile.addModLoader("Quilt")
-    mainFile.releaseType = project.properties["release_type"]
-
-    mainFile.changelogType = "markdown"
-    mainFile.changelog = new File(project.getRootDir(), "changelog.md")
-
-    for(String version: getSupportedVersions(project.properties))
-        mainFile.addGameVersion(version)
-
-    mainFile.addRequirement("simple-voice-chat")
-
-}
-
-tasks.modrinth.configure({
-    group = 'upload'
-})
-tasks.modrinthSyncBody.configure({
-    group = 'upload'
-})
-
-modrinth {
-    String[] versions = getSupportedVersions(project.properties);
-
-    token = getModrinthToken(project)
-    projectId = modrinth_id
-    versionName = "[FABRIC][${minecraft_dependency}] ${mod_title} v${mod_base_version}"
-    versionNumber = "${mod_version}"
-    versionType = release_type.toUpperCase()
-    uploadFile = shadowJar
-    gameVersions = Arrays.asList(versions)
-    loaders = ['fabric', 'quilt']
-
-    syncBodyFrom = file('readme.md').text
-    changelog = new File(project.getRootDir(), "changelog.md").readLines().join("\n")
-
-    var shouldPublish = project.properties["debug_publishing"]
-    if(shouldPublish != null && shouldPublish.toString().equalsIgnoreCase("true"))
-        setDebugMode(true)
-
-    dependencies {
-        required.project '9eGKb6K1' // Simple Voice Chat
-    }
-}
-tasks.modrinth.dependsOn(build)
-
 shadowJar {
     configurations = [project.configurations.shadow]
     archiveClassifier = ''
     relocate 'de.maxhenkel.configbuilder', "de.maxhenkel.${mod_id}.configbuilder"
+}
+
+if (project.properties["skip-publishing-init"] == "false") {
+    print("Defining publishing remotes")
+
+    apply plugin: "com.modrinth.minotaur"
+    apply from: "$rootDir/publishing.gradle"
+
+    tasks.register('curseforge', TaskPublishCurseForge) {
+        group = "upload"
+        description = "Publishes project to CurseForge"
+
+        String mcVer = project.properties["minecraft_dependency"]
+        String projectVer = project.properties["mod_base_version"]
+        String projectId = project.properties["curse_id"]
+
+        if (projectVer == null || projectVer.isBlank())
+            throw new IllegalStateException("Project version should not be null when publishing.")
+
+        apiToken = getCurseToken(project)
+
+        var shouldPublish = project.properties["debug_publishing"]
+        if (shouldPublish != null && shouldPublish.toString().equalsIgnoreCase("true"))
+            debugMode = true
+
+        def mainFile = upload(projectId, shadowJar)
+        mainFile.displayName = "[FABRIC][${mcVer}] ${mod_title} v${projectVer}"
+        mainFile.addModLoader("Fabric")
+        mainFile.addModLoader("Quilt")
+        mainFile.releaseType = project.properties["release_type"]
+
+        mainFile.changelogType = "markdown"
+        mainFile.changelog = new File(project.getRootDir(), "changelog.md")
+
+        for (String version : getSupportedVersions(project.properties))
+            mainFile.addGameVersion(version)
+
+        mainFile.addRequirement("simple-voice-chat")
+
+    }
+
+    tasks.modrinth.configure({ group = 'upload' })
+    tasks.modrinthSyncBody.configure({ group = 'upload' })
+
+    modrinth {
+        String[] versions = getSupportedVersions(project.properties);
+
+        token = getModrinthToken(project)
+        projectId = modrinth_id
+        versionName = "[FABRIC][${minecraft_dependency}] ${mod_title} v${mod_base_version}"
+        versionNumber = "${mod_version}"
+        versionType = release_type.toUpperCase()
+        uploadFile = shadowJar
+        gameVersions = Arrays.asList(versions)
+        loaders = ['fabric', 'quilt']
+
+        syncBodyFrom = file('readme.md').text
+        changelog = new File(project.getRootDir(), "changelog.md").readLines().join("\n")
+
+        var shouldPublish = project.properties["debug_publishing"]
+        if (shouldPublish != null && shouldPublish.toString().equalsIgnoreCase("true"))
+            setDebugMode(true)
+
+        dependencies {
+            required.project '9eGKb6K1' // Simple Voice Chat
+        }
+    }
+    tasks.modrinth.dependsOn(build)
+
+} else {
+    print("Publishing init disabled in gradle.properties.")
+
+    tasks.register('curseforge') {
+        group = 'upload'
+
+        doLast {
+            throw new GradleException("Publishing init has been disabled in gradle.properties so Curseforge publishing is not available.")
+        }
+    }
+
+    tasks.register('modrinth') {
+        group = 'upload'
+        doLast {
+            throw new GradleException("Publishing init has been disabled in gradle.properties so Modrinth publishing is not available.")
+        }
+    }
+
+    tasks.register('modrinthSyncBody') {
+        group = 'upload'
+        doLast {
+            throw new GradleException("Publishing init has been disabled in gradle.properties so Modrinth authoring is not available.")
+        }
+    }
 }
