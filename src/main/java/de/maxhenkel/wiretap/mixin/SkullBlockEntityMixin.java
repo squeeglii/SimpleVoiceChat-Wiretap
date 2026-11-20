@@ -12,7 +12,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.entity.BlockEntityTypes;
 import net.minecraft.world.level.block.entity.SkullBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
@@ -33,7 +33,7 @@ public class SkullBlockEntityMixin extends BlockEntity implements IWiretapDevice
     @Unique private WiretapDevice deviceData = null;
 
     public SkullBlockEntityMixin(BlockPos blockPos, BlockState blockState) {
-        super(BlockEntityType.SKULL, blockPos, blockState);
+        super(BlockEntityTypes.SKULL, blockPos, blockState);
     }
 
     // block loading / saving ----
