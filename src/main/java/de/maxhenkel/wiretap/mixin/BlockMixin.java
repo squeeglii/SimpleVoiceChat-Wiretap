@@ -7,9 +7,9 @@ import de.maxhenkel.wiretap.wiretap.DeviceType;
 import de.maxhenkel.wiretap.wiretap.IWiretapDeviceHolder;
 import de.maxhenkel.wiretap.wiretap.WiretapManager;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.PlayerHeadBlock;
 import net.minecraft.world.level.block.PlayerWallHeadBlock;
@@ -28,8 +28,8 @@ import java.util.UUID;
 public class BlockMixin {
 
     @Inject(method = "playerDestroy", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/Block;dropResources(Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/Level;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/entity/BlockEntity;Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/item/ItemStack;)V"), cancellable = true)
-    public void playerDestroy(Level level, Player player, BlockPos blockPos, BlockState blockState, BlockEntity blockEntity, ItemStack itemStack, CallbackInfo ci) {
-        if (!(blockState.getBlock() instanceof PlayerHeadBlock || blockState.getBlock() instanceof PlayerWallHeadBlock)) {
+    public void playerDestroy(ServerLevel level, ServerPlayer player, BlockPos pos, BlockState state, BlockEntity blockEntity, ItemStack destroyedWith, CallbackInfo ci) {
+        if (!(state.getBlock() instanceof PlayerHeadBlock || state.getBlock() instanceof PlayerWallHeadBlock)) {
             return;
         }
         if (!(blockEntity instanceof SkullBlockEntity skullBlockEntity)) {
@@ -57,7 +57,7 @@ public class BlockMixin {
         }
 
         HeadUtils.createHead(deviceData).ifPresent(
-                stack -> Block.popResource(level, blockPos, stack)
+                stack -> Block.popResource(level, pos, stack)
         );
 
         ci.cancel();
