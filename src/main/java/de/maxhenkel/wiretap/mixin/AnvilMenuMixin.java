@@ -3,6 +3,7 @@ package de.maxhenkel.wiretap.mixin;
 import com.llamalad7.mixinextras.sugar.Local;
 import de.maxhenkel.wiretap.Wiretap;
 import de.maxhenkel.wiretap.utils.HeadUtils;
+import net.minecraft.util.Prediction;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.*;
@@ -96,7 +97,7 @@ public abstract class AnvilMenuMixin extends ItemCombinerMenu {
 
         boolean added = player.getInventory().add(speaker);
         if (!added || !speaker.isEmpty()) {
-            player.drop(speaker, false);
+            player.drop(speaker, false, Prediction.SERVER_ONLY);
         }
     }
 
